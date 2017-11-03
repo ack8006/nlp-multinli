@@ -35,7 +35,7 @@ def get_dataloader(dataset, tokenizer=custom_tokenizer):
     tsv_file_existence_check(file_txt, file_tsv)
     print('Creating {} Data Loader'.format(dataset.title()))
 
-    text_field = data.Field(tokenize=nltk.word_tokenize)
+    text_field = data.Field(tokenize=tokenizer)
     label_field = data.Field(sequential=False)
     data_loader = data.TabularDataset(path='../data/{}'.format(file_tsv),
                                       format='TSV',
