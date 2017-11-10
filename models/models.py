@@ -11,7 +11,7 @@ class Encoder(nn.Module):
                            hidden_size=config.d_hidden,
                            num_layers=config.n_layers,
                            batch_first=False,
-                           dropout=config.dropout,
+                           dropout=config.dropout_rnn,
                            bidirectional=config.bidir)
 
     def forward(self, X):
@@ -32,17 +32,10 @@ class ConcatModel(nn.Module):
 
         self.config = config
         self.embed = nn.Embedding(config.n_embed, config.d_embed)
-        # self.encoder = nn.LSTM(config.d_embed,
-        #                        config.d_hidden,
-        #                        config.n_layers,
-        #                        bias=True,
-        #                        batch_first=True,
-        #                        bidirectional=config.bidir,
-        #                        dropout=config.dropout)
         self.encoder = Encoder(config)
 
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(p=config.dropout)
+        self.dropout = nn.Dropout(p=config.dropout_mlp)
 
         seq_in_size = 2 * config.d_hidden
         if config.bidir:
