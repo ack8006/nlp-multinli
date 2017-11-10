@@ -3,12 +3,14 @@ import sys
 import torch
 import torch.nn as nn
 from torchtext import data
+import nltk
 
 from models import ConcatModel
 sys.path.append('../utilities')
 from tokenizers import custom_tokenizer
 from utils import get_dataset, get_args
 
+nltk.download('punkt')
 
 MODELS = {'ConcatModel': ConcatModel}
 
