@@ -4,22 +4,22 @@ from torch.autograd import Variable
 
 
 class Encoder(nn.Module):
-
     def __init__(self, config):
         super(Encoder, self).__init__()
         self.config = config
         self.rnn = nn.LSTM(input_size=config.d_embed,
                            hidden_size=config.d_hidden,
                            num_layers=config.n_layers,
-                           batch_first=True,
+                           batch_first=False,
                            dropout=config.dropout,
                            bidirectional=config.bidir)
 
     def forward(self, X):
-        batch_size = X.size(0)
-        state_shape = self.config.n_cells, batch_size, self.config.d_hidden
+        batch_size = X.size(1)
+        state_shape = (self.config.n_cells, batch_size, self.config.d_hidden)
         h0 = c0 = Variable(X.data.new(*state_shape).zero_())
         outputs, (ht, ct) = self.rnn(X, (h0, c0))
+        # print('Hidden Size: ', ht.size())
         if not self.config.bidir:
             return ht[-1]
         else:
@@ -60,6 +60,13 @@ class ConcatModel(nn.Module):
                                  nn.Linear(seq_in_size, config.d_out))
 
     def forward(self, X):
+        # print('Input_size: ', X.premise.size())
         premise = self.embed(X.premise)
+        # print('Premise Emb Size: ', premise.size())
         hypothesis = self.embed(X.hypothesis)
+        # print('Hypothesis Emb Size: ', hypothesis.size())
+        premise = self.encoder(premise)
+        # print('Premise Encoder Size: ', premise.size())
+        hypothesis = self.encoder(hypothesis)
+
         return self.out(torch.cat([premise, hypothesis], 1))

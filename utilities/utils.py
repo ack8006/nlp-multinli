@@ -1,4 +1,5 @@
 import os
+from argparse import ArgumentParser
 from torchtext import data
 
 
@@ -20,6 +21,8 @@ def tsv_file_existence_check(file_txt, file_tsv):
             with open('../data/{}'.format(file_tsv), 'w') as f_tsv:
                 for line in lines[1:]:
                     line = line.split('\t')
+                    if line[0] == '-':  # Examples without a Gold Consensus
+                        continue
                     f_tsv.write('\t'.join([line[0], line[5], line[6]]) + '\n')
 
 
@@ -36,3 +39,26 @@ def get_dataset(text_field, label_field, dataset):
                                           ('premise', text_field),
                                           ('hypothesis', text_field)])
     return dataset
+
+
+def get_args():
+    parser = ArgumentParser(description='PyTorch MultiNLI Model')
+    parser.add_argument('--model_type', type=str)
+    parser.add_argument('--val_set', type=str, default='val_matched',
+                        help='Which Val Set (val_matched, val_unmatched')
+    parser.add_argument('--max_vocab_size', type=int, default=20000)
+    parser.add_argument('--n_epochs', type=int, default=40)
+    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--sentence_len', type=int, default=25)
+    parser.add_argument('--d_embed', type=int, default=200)
+    parser.add_argument('--d_proj', type=int, default=200)
+    parser.add_argument('--d_hidden', type=int, default=200)
+    parser.add_argument('--n_layers', type=int, default=1)
+    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--dropout', type=float, default=0.0)
+    parser.add_argument('--word_vectors', type=str, default='glove.6B.200d')
+    parser.add_argument('--bidir', action='store_true')
+    parser.add_argument('--cuda', action='store_true')
+    parser.add_argument('--load_model', type=str, default='')
+    args = parser.parse_args()
+    return args
