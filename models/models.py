@@ -41,25 +41,26 @@ class ConcatModel(nn.Module):
         if config.bidir:
             seq_in_size *= 2
         lin_config = [seq_in_size] * 2
-        self.out = nn.Sequential(nn.Linear(*lin_config),
-                                 self.relu,
-                                 self.dropout,
+        self.out = nn.Sequential(nn.BatchNorm1d(seq_in_size),
                                  nn.Linear(*lin_config),
                                  self.relu,
                                  self.dropout,
+                                 nn.BatchNorm1d(seq_in_size),
                                  nn.Linear(*lin_config),
                                  self.relu,
                                  self.dropout,
+                                 nn.BatchNorm1d(seq_in_size),
+                                 nn.Linear(*lin_config),
+                                 self.relu,
+                                 self.dropout,
+                                 nn.BatchNorm1d(seq_in_size),
                                  nn.Linear(seq_in_size, config.d_out))
 
     def forward(self, X):
-        # print('Input_size: ', X.premise.size())
         premise = self.embed(X.premise)
-        # print('Premise Emb Size: ', premise.size())
         hypothesis = self.embed(X.hypothesis)
-        # print('Hypothesis Emb Size: ', hypothesis.size())
+
         premise = self.encoder(premise)
-        # print('Premise Encoder Size: ', premise.size())
         hypothesis = self.encoder(hypothesis)
 
         return self.out(torch.cat([premise, hypothesis], 1))

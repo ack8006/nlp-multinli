@@ -65,6 +65,7 @@ def main():
 
     if args.cuda:
         model.cuda()
+    print(model)
 
     print('Training Model')
 
