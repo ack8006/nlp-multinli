@@ -5,7 +5,7 @@ import torch.nn as nn
 from torchtext import data
 import nltk
 
-from models import ConcatModel, CosineModel
+from models import ConcatModel, CosineModel, ESIM
 sys.path.append('../utilities')
 from tokenizers import custom_tokenizer
 from utils import get_dataset, get_args
@@ -13,7 +13,8 @@ from utils import get_dataset, get_args
 nltk.download('punkt')
 
 MODELS = {'ConcatModel': ConcatModel,
-          'CosineModel': CosineModel}
+          'CosineModel': CosineModel,
+          'ESIM': ESIM}
 
 
 def sort_key(ex):
