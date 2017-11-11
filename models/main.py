@@ -72,6 +72,7 @@ def main():
 
     print('Training Model')
 
+    best_val_acc = 60.0
     for epoch in range(1, args.n_epochs + 1):
         train_iter.init_epoch()
         for batch_ind, batch in enumerate(train_iter):
@@ -84,22 +85,27 @@ def main():
 
             if (batch_ind != 0) and (batch_ind % args.dev_every == 0):
                 val_correct, val_loss = evaluate(val_iter, model, criterion)
+                val_accuracy = 100 * val_correct / len(val)
                 print('Batch Step {}/{}, Val Loss: {:.4f}, Val Accuracy: {:.4f}'.\
                             format(batch_ind,
                                    len(train) // args.batch_size,
                                    val_loss,
-                                   100 * val_correct / len(val)))
+                                   val_accuracy))
 
-        print('Evaluating')
         train_correct, train_loss = evaluate(train_iter, model, criterion)
         val_correct, val_loss = evaluate(val_iter, model, criterion)
+        val_accuracy = 100 * val_correct / len(val)
 
         print('Epoch: {}, Train Loss: {:.4f}, Val Loss: {:.4f}, Train Accuracy: {:.2f}, Val Accuracy: {:.2f}'.\
                 format(epoch,
                        train_loss,
                        val_loss,
                        100 * train_correct / len(train),
-                       100 * val_correct / len(val)))
+                       val_accuracy))
+        if args.save_model and (val_accuracy > best_val_acc):
+            best_val_acc = val_accuracy
+            snapshot_path = '../saved_models/Model_{}_acc_{:.4f}_epoch_{}_model.pt'.format(args.model_type, val_accuracy, epoch)
+            torch.save(model, snapshot_path)
 
 
 def evaluate(iterator, model, criterion):
