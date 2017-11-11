@@ -39,7 +39,7 @@ def main():
 
     device = -1
     if args.cuda:
-        device = 1
+        device = None
 
     print('Generating Iterators')
     train_iter, val_iter = data.BucketIterator.splits((train, val),
@@ -66,7 +66,8 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     if args.cuda:
-        model.cuda()
+        model = model.cuda()
+        criterion = criterion.cuda()
     print(model)
 
     print('Training Model')
