@@ -49,7 +49,7 @@ def get_args():
     parser.add_argument('--max_vocab_size', type=int, default=20000)
     parser.add_argument('--n_epochs', type=int, default=40)
     parser.add_argument('--batch_size', type=int, default=128)
-    parser.add_argument('--sentence_len', type=int, default=25)
+    parser.add_argument('--sentence_len', type=int, default=None)
     parser.add_argument('--d_embed', type=int, default=200)
     # parser.add_argument('--d_proj', type=int, default=200)
     parser.add_argument('--d_hidden', type=int, default=200)
