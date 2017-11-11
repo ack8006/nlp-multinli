@@ -73,6 +73,7 @@ def main():
     print('Training Model')
 
     for epoch in range(1, args.n_epochs + 1):
+        train_iter.init_epoch()
         for batch_ind, batch in enumerate(train_iter):
             model.train()
             optimizer.zero_grad()
