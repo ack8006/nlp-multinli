@@ -3,6 +3,24 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 
+class MLP(nn.Module):
+    def __init__(self, layers, d_out, dropout, activation):
+        super(MLP, self).__init__()
+        self.mlp = nn.Sequential()
+        self.dropout = nn.Dropout(dropout)
+
+        for ind, (l_in, l_out) in enumerate(layers):
+            self.mlp.add_module('BN_{}'.format(ind), nn.BatchNorm1d(l_in))
+            self.mlp.add_module('Linear_{}'.format(ind), nn.Linear(l_in, l_out))
+            self.mlp.add_module('Activation_{}'.format(ind), activation)
+            self.mlp.add_module('Dropout_{}'.format(ind), self.dropout)
+        self.mlp.add_module('BN_Out', nn.BatchNorm1d(layers[-1][1]))
+        self.mlp.add_module('Linear_Out', nn.Linear(layers[-1][1], d_out))
+
+    def forward(self, X):
+        return self.mlp(X)
+
+
 class Encoder(nn.Module):
     def __init__(self, config):
         super(Encoder, self).__init__()
@@ -33,28 +51,14 @@ class ConcatModel(nn.Module):
         self.config = config
         self.embed = nn.Embedding(config.n_embed, config.d_embed)
         self.encoder = Encoder(config)
-
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(p=config.dropout_mlp)
 
         seq_in_size = 2 * config.d_hidden
         if config.bidir:
             seq_in_size *= 2
-        lin_config = [seq_in_size] * 2
-        self.out = nn.Sequential(nn.BatchNorm1d(seq_in_size),
-                                 nn.Linear(*lin_config),
-                                 self.relu,
-                                 self.dropout,
-                                 nn.BatchNorm1d(seq_in_size),
-                                 nn.Linear(*lin_config),
-                                 self.relu,
-                                 self.dropout,
-                                 nn.BatchNorm1d(seq_in_size),
-                                 nn.Linear(*lin_config),
-                                 self.relu,
-                                 self.dropout,
-                                 nn.BatchNorm1d(seq_in_size),
-                                 nn.Linear(seq_in_size, config.d_out))
+        layers = [[seq_in_size] * 2] * 3
+
+        self.out = MLP(layers, config.d_out, config.dropout_mlp, self.relu)
 
     def forward(self, X):
         premise = self.embed(X.premise)
