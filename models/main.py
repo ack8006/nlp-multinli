@@ -16,8 +16,7 @@ MODELS = {'ConcatModel': ConcatModel}
 
 
 def sort_key(ex):
-        return data.interleave_keys(
-            len(ex.premise), len(ex.hypothesis))
+    return data.interleave_keys(len(ex.premise), len(ex.hypothesis))
 
 
 def main():
@@ -83,7 +82,7 @@ def main():
             loss.backward()
             optimizer.step()
 
-            if batch_ind % args.dev_every == 0:
+            if (batch_ind != 0) and (batch_ind % args.dev_every == 0):
                 val_correct, val_loss = evaluate(val_iter, model, criterion)
                 print('Batch Step {}/{}, Val Loss: {:.4f}, Val Accuracy: {:.4f}'.\
                             format(batch_ind,
