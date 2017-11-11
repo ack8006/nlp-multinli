@@ -122,7 +122,10 @@ class ESIM(nn.Module):
         self.v1 = nn.LSTM(input_size = self.embedding_dim*8, hidden_size = self.dim, bidirectional=True)
         self.v2 = nn.LSTM(input_size = self.embedding_dim*8, hidden_size = self.dim, bidirectional=True)
 
-    def forward(self, p, h):
+    def forward(self, x):
+
+        p = x.premise
+        h = x.hypothesis
 
         ### Get max sequence lengths ###
         p_length = p.size(0)
