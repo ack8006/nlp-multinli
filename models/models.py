@@ -56,7 +56,7 @@ class ConcatModel(nn.Module):
         seq_in_size = 2 * config.d_hidden
         if config.bidir:
             seq_in_size *= 2
-        layers = [[seq_in_size] * 2] * 3
+        layers = [[seq_in_size] * 2] * config.n_linear_layers
 
         self.out = MLP(layers, config.d_out, config.dropout_mlp, self.relu)
 
