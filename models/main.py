@@ -5,14 +5,15 @@ import torch.nn as nn
 from torchtext import data
 import nltk
 
-from models import ConcatModel
+from models import ConcatModel, CosineModel
 sys.path.append('../utilities')
 from tokenizers import custom_tokenizer
 from utils import get_dataset, get_args
 
 nltk.download('punkt')
 
-MODELS = {'ConcatModel': ConcatModel}
+MODELS = {'ConcatModel': ConcatModel,
+          'CosineModel': CosineModel}
 
 
 def sort_key(ex):
@@ -27,7 +28,8 @@ def main():
                             unk_token='<**UNK**>')
     label_field = data.Field(sequential=False, unk_token=None)
 
-    train = get_dataset(text_field, label_field, 'train')
+    # train = get_dataset(text_field, label_field, 'train')
+    train = get_dataset(text_field, label_field, args.val_set)
     val = get_dataset(text_field, label_field, args.val_set)
 
     text_field.build_vocab(train, max_size=args.max_vocab_size)
@@ -72,7 +74,7 @@ def main():
 
     print('Training Model')
 
-    best_val_acc = 60.0
+    best_val_acc = 0.0
     for epoch in range(1, args.n_epochs + 1):
         train_iter.init_epoch()
         for batch_ind, batch in enumerate(train_iter):
@@ -86,7 +88,7 @@ def main():
             if (batch_ind != 0) and (batch_ind % args.dev_every == 0):
                 val_correct, val_loss = evaluate(val_iter, model, criterion)
                 val_accuracy = 100 * val_correct / len(val)
-                print('Batch Step {}/{}, Val Loss: {:.4f}, Val Accuracy: {:.4f}'.\
+                print('    Batch Step {}/{}, Val Loss: {:.4f}, Val Accuracy: {:.4f}'.\
                             format(batch_ind,
                                    len(train) // args.batch_size,
                                    val_loss,
@@ -96,16 +98,19 @@ def main():
         val_correct, val_loss = evaluate(val_iter, model, criterion)
         val_accuracy = 100 * val_correct / len(val)
 
-        print('Epoch: {}, Train Loss: {:.4f}, Val Loss: {:.4f}, Train Accuracy: {:.2f}, Val Accuracy: {:.2f}'.\
+        if args.save_model and (val_accuracy > best_val_acc):
+            best_val_acc = val_accuracy
+            if best_val_acc > 60:
+                snapshot_path = '../saved_models/Model_{}_acc_{:.4f}_epoch_{}_model.pt'.format(args.model_type, val_accuracy, epoch)
+                torch.save(model, snapshot_path)
+
+        print('Epoch: {}, Train Loss: {:.4f}, Val Loss: {:.4f}, Train Acc: {:.2f}, Val Acc: {:.2f}, Best Val Acc: {:.2f}'.\
                 format(epoch,
                        train_loss,
                        val_loss,
                        100 * train_correct / len(train),
-                       val_accuracy))
-        if args.save_model and (val_accuracy > best_val_acc):
-            best_val_acc = val_accuracy
-            snapshot_path = '../saved_models/Model_{}_acc_{:.4f}_epoch_{}_model.pt'.format(args.model_type, val_accuracy, epoch)
-            torch.save(model, snapshot_path)
+                       val_accuracy,
+                       best_val_acc))
 
 
 def evaluate(iterator, model, criterion):

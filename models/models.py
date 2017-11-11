@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+from scipy.spatial.distance import cosine
 
 
 class MLP(nn.Module):
@@ -68,3 +69,39 @@ class ConcatModel(nn.Module):
         hypothesis = self.encoder(hypothesis)
 
         return self.out(torch.cat([premise, hypothesis], 1))
+
+
+class CosineModel(nn.Module):
+    def __init__(self, config):
+        super(CosineModel, self).__init__()
+
+        self.config = config
+        self.embed = nn.Embedding(config.n_embed, config.d_embed)
+        self.encoder = Encoder(config)
+        self.relu = nn.ReLU()
+
+        seq_in_size = 2 * config.d_hidden
+        if config.bidir:
+            seq_in_size *= 2
+        seq_in_size += 1
+        layers = [[seq_in_size] * 2] * config.n_linear_layers
+
+        self.out = MLP(layers, config.d_out, config.dropout_mlp, self.relu)
+
+    def forward(self, X):
+        premise = self.embed(X.premise)
+        hypothesis = self.embed(X.hypothesis)
+
+        premise = self.encoder(premise)
+        hypothesis = self.encoder(hypothesis)
+        dist = self.calculate_distances(premise, hypothesis)
+
+        return self.out(torch.cat([dist, premise, hypothesis], 1))
+
+    def calculate_distances(self, x1, x2):
+        distances = torch.Tensor(x1.size(0), 1).float()
+        for d in range(distances.size(0)):
+            distances[d, 0] = cosine(x1[d].data.cpu().numpy(), x2[d].data.cpu().numpy())
+        if self.config.cuda:
+            distances = distances.cuda()
+        return Variable(distances)
