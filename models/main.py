@@ -28,8 +28,7 @@ def main():
                             unk_token='<**UNK**>')
     label_field = data.Field(sequential=False, unk_token=None)
 
-    # train = get_dataset(text_field, label_field, 'train')
-    train = get_dataset(text_field, label_field, args.val_set)
+    train = get_dataset(text_field, label_field, 'train')
     val = get_dataset(text_field, label_field, args.val_set)
 
     text_field.build_vocab(train, max_size=args.max_vocab_size)
