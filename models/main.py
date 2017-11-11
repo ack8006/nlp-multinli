@@ -47,6 +47,7 @@ def main():
                                                 shuffle=True,
                                                 sort_key=sort_key,
                                                 device=device)
+    train_iter.repeat = False
 
     args.n_embed = len(text_field.vocab)
     args.d_out = len(label_field.vocab)
