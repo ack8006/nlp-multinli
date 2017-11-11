@@ -48,7 +48,7 @@ def get_args():
                         help='Which Val Set (val_matched, val_unmatched')
     parser.add_argument('--max_vocab_size', type=int, default=20000)
     parser.add_argument('--n_epochs', type=int, default=40)
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--sentence_len', type=int, default=25)
     parser.add_argument('--d_embed', type=int, default=200)
     # parser.add_argument('--d_proj', type=int, default=200)
@@ -60,6 +60,7 @@ def get_args():
     parser.add_argument('--word_vectors', type=str, default='glove.6B.200d')
     parser.add_argument('--bidir', action='store_true')
     parser.add_argument('--cuda', action='store_true')
+    parser.add_argument('--dev_every', type=int, default=300)
     parser.add_argument('--load_model', type=str, default='')
     args = parser.parse_args()
     return args

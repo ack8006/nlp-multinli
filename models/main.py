@@ -81,6 +81,15 @@ def main():
             loss.backward()
             optimizer.step()
 
+            if batch_ind % args.dev_every == 0:
+                val_correct, val_loss = evaluate(val_iter, model, criterion)
+                print('Batch Step {}/{}, Val Loss: {:.4f}, Val Accuracy: {:.4f}'.\
+                            format(batch_ind,
+                                   len(train) // args.batch_size,
+                                   val_loss,
+                                   100 * val_correct / len(val)))
+
+        print('Evaluating')
         train_correct, train_loss = evaluate(train_iter, model, criterion)
         val_correct, val_loss = evaluate(val_iter, model, criterion)
 
@@ -93,7 +102,6 @@ def main():
 
 
 def evaluate(iterator, model, criterion):
-    print('Evaluating')
     model.eval()
     n_correct, eval_losses = 0, []
     for batch_ind, batch in enumerate(iterator):
