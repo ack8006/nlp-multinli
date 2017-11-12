@@ -112,7 +112,7 @@ def main():
             best_val_acc = val_accuracy
             if best_val_acc > 60:
                 snapshot_path = '../saved_models/Model_{}_acc_{:.4f}_epoch_{}_model.pt'.format(args.model_type, val_accuracy, epoch)
-                torch.save(model, snapshot_path)
+                torch.save(model.cpu(), snapshot_path)
 
         print('Epoch: {}, Train Loss: {:.4f}, Val Loss: {:.4f}, Train Acc: {:.2f}, Val Acc: {:.2f}, Best Val Acc: {:.2f}'.\
                 format(epoch,
