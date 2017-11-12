@@ -1,5 +1,6 @@
 import sys
 
+from comet_ml import Experiment
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,7 +24,11 @@ def sort_key(ex):
 
 
 def main():
+
     args = get_args()
+    experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
+    hyperparams = vars(args)
+    experiment.log_multiple_params(hyperparams)
 
     text_field = data.Field(tokenize=custom_tokenizer,
                             fix_length=args.sentence_len,
@@ -98,6 +103,10 @@ def main():
         train_correct, train_loss = evaluate(train_iter, model, criterion)
         val_correct, val_loss = evaluate(val_iter, model, criterion)
         val_accuracy = 100 * val_correct / len(val)
+
+        experiment.log_metric("Train loss", train_loss)
+        experient.log_metric("Val loss", val_loss)
+        experiment.log_metric("Accuracy (val)", val_accuracy)
 
         if args.save_model and (val_accuracy > best_val_acc):
             best_val_acc = val_accuracy

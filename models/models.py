@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.autograd import Variable
 from scipy.spatial.distance import cosine
 
@@ -119,8 +120,8 @@ class ESIM(nn.Module):
         self.cl = nn.Linear(self.dim, 3)
         self.premise = nn.LSTM(input_size = self.embedding_dim, hidden_size = self.dim, bidirectional=True)
         self.hypothesis = nn.LSTM(input_size = self.embedding_dim, hidden_size = self.dim, bidirectional=True)
-        self.v1 = nn.LSTM(input_size = self.embedding_dim*8, hidden_size = self.dim, bidirectional=True)
-        self.v2 = nn.LSTM(input_size = self.embedding_dim*8, hidden_size = self.dim, bidirectional=True)
+        self.v1 = nn.LSTM(input_size = d_hidden*8, hidden_size = self.dim, bidirectional=True)
+        self.v2 = nn.LSTM(input_size = d_hidden*8, hidden_size = self.dim, bidirectional=True)
 
     def forward(self, x):
 
