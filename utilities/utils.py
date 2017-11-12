@@ -58,6 +58,8 @@ def get_args():
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--dropout_rnn', type=float, default=0.0)
     parser.add_argument('--dropout_mlp', type=float, default=0.0)
+    parser.add_argument('--dropout_emb', type=float, default=0.0,
+                        help='Dropout applied to the embeddings')
     parser.add_argument('--word_vectors', type=str, default='glove.6B.200d')
     parser.add_argument('--bidir', action='store_true')
     parser.add_argument('--cuda', action='store_true')

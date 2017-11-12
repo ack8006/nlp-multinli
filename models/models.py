@@ -114,14 +114,30 @@ class ESIM(nn.Module):
         self.embedding_dim = config.d_embed
         self.dim = config.d_hidden
         self.embed = nn.Embedding(config.n_embed, config.d_embed)
-        self.emb_drop = nn.Dropout(p=config.dropout_rnn)
+        self.emb_drop = nn.Dropout(p=config.dropout_emb)
         self.dropout = nn.Dropout(p=config.dropout_mlp)
         self.mlp = nn.Linear(self.dim*8, self.dim, bias=True)
         self.cl = nn.Linear(self.dim, 3)
-        self.premise = nn.LSTM(input_size = self.embedding_dim, hidden_size = self.dim, num_layers = config.n_layers, bidirectional=True)
-        self.hypothesis = nn.LSTM(input_size = self.embedding_dim, hidden_size = self.dim, num_layers = config.n_layers, bidirectional=True)
-        self.v1 = nn.LSTM(input_size = self.dim*8, hidden_size = self.dim, num_layers = config.n_layers, bidirectional=True)
-        self.v2 = nn.LSTM(input_size = self.dim*8, hidden_size = self.dim, num_layers = config.n_layers, bidirectional=True)
+        self.premise = nn.LSTM(input_size = self.embedding_dim,
+                               hidden_size = self.dim,
+                               num_layers = config.n_layers,
+                               dropout = config.dropout_rnn,
+                               bidirectional=True)
+        self.hypothesis = nn.LSTM(input_size = self.embedding_dim,
+                                  hidden_size = self.dim,
+                                  num_layers = config.n_layers,
+                                  dropout = config.dropout_rnn,
+                                  bidirectional=True)
+        self.v1 = nn.LSTM(input_size = self.dim*8,
+                          hidden_size = self.dim,
+                          num_layers = config.n_layers,
+                          dropout = config.dropout_rnn,
+                          bidirectional=True)
+        self.v2 = nn.LSTM(input_size = self.dim*8,
+                          hidden_size = self.dim,
+                          num_layers = config.n_layers,
+                          dropout = config.dropout_rnn,
+                          bidirectional=True)
 
     def forward(self, x):
 
