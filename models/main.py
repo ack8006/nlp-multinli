@@ -105,7 +105,7 @@ def main():
         val_accuracy = 100 * val_correct / len(val)
 
         experiment.log_metric("Train loss", train_loss)
-        experient.log_metric("Val loss", val_loss)
+        experiment.log_metric("Val loss", val_loss)
         experiment.log_metric("Accuracy (val)", val_accuracy)
 
         if args.save_model and (val_accuracy > best_val_acc):
