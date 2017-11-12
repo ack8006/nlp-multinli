@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchtext import data
 import nltk
+import numpy as np
 
 from models import ConcatModel, CosineModel, ESIM
 sys.path.append('../utilities')
@@ -18,6 +19,26 @@ MODELS = {'ConcatModel': ConcatModel,
           'CosineModel': CosineModel,
           'ESIM': ESIM}
 
+def early_stop(val_acc_history, t=3, required_progress=0.01):
+    """
+    Stop the training if there is no non-trivial progress in k steps
+    @param val_acc_history: a list contains all the historical validation acc
+    @param required_progress: the next acc should be higher than the previous by 
+        at least required_progress amount to be non-trivial
+    @param t: number of training steps 
+    @return: a boolean indicates if the model should early stop
+    """
+    
+    if len(val_acc_history) < t+1:
+        return False
+    else:
+        first = np.array(val_acc_history[-t-1:-1])
+        second = np.array(val_acc_history[-t:])
+        
+        if np.all((second - first) < required_progress):
+            return True
+        else:
+            return False
 
 def sort_key(ex):
     return data.interleave_keys(len(ex.premise), len(ex.hypothesis))
@@ -81,6 +102,8 @@ def main():
     print('Training Model')
 
     best_val_acc = 0.0
+    val_acc_history = []
+
     for epoch in range(1, args.n_epochs + 1):
         train_iter.init_epoch()
         for batch_ind, batch in enumerate(train_iter):
@@ -94,11 +117,18 @@ def main():
             if (batch_ind != 0) and (batch_ind % args.dev_every == 0):
                 val_correct, val_loss = evaluate(val_iter, model, criterion)
                 val_accuracy = 100 * val_correct / len(val)
+                val_acc_history.append(val_accuracy)
+
                 print('    Batch Step {}/{}, Val Loss: {:.4f}, Val Accuracy: {:.4f}'.\
                             format(batch_ind,
                                    len(train) // args.batch_size,
                                    val_loss,
                                    val_accuracy))
+
+            stop_training = early_stop(val_acc_history)
+
+            if stop_training:
+                break
 
         train_correct, train_loss = evaluate(train_iter, model, criterion)
         val_correct, val_loss = evaluate(val_iter, model, criterion)
@@ -126,6 +156,10 @@ def main():
                        100 * train_correct / len(train),
                        val_accuracy,
                        best_val_acc))
+
+        if stop_training:
+            print('Early stop triggered.')
+            break
 
 
 def evaluate(iterator, model, criterion):
