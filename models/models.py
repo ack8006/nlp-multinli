@@ -149,8 +149,8 @@ class ESIM(nn.Module):
         h_length = h.size(0)
     
         ### Get masks for true sequence length ###
-        mask_p = p != 1
-        mask_h = h != 1
+        mask_p = (p != 1).unsqueeze(2).float()
+        mask_h = (h != 1).unsqueeze(2).float()
         
         ### Embed inputs ###
         p = self.emb_drop(self.embed(p))
@@ -179,8 +179,9 @@ class ESIM(nn.Module):
                 scores_i_list.append(score_ij)
                                         
             scores_i = torch.transpose(torch.stack(scores_i_list, dim=1), 0, 1)
-            alpha_i = F.softmax(scores_i) # Masked?
-    
+            alpha_i = torch.exp(scores_i).mul(mask_h)         
+            alpha_i = alpha_i / alpha_i.sum(dim=0).expand_as(alpha_i)
+ 
             a_tilde_i = torch.sum(torch.mul(alpha_i, hypothesis_bi), 0)
     
             premise_attn.append(a_tilde_i)
@@ -195,7 +196,8 @@ class ESIM(nn.Module):
         betas = []
         for j in range(h_length):
             scores_j = torch.transpose(scores_list[j], 0, 1).unsqueeze(2)
-            beta_j = F.softmax(scores_j) # Masked?
+            beta_j = torch.exp(scores_j).mul(mask_p)
+            beta_j = beta_j / beta_j.sum(dim=0).expand_as(beta_j)
             b_tilde_j = torch.sum(torch.mul(beta_j, premise_bi), 0)
             hypothesis_attn.append(b_tilde_j)
 
