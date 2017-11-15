@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from scipy.spatial.distance import cosine
 
+def get_masks(input, pad_token=1):
+    return (input != pad_token).unsqueeze(2).float()
 
 class MLP(nn.Module):
     def __init__(self, layers, d_out, dropout, activation):
@@ -141,16 +143,17 @@ class ESIM(nn.Module):
 
     def forward(self, x):
 
-        p = x.premise
-        h = x.hypothesis
+        p = x.premise #[sentence_length x batch_size]
+        h = x.hypothesis #[sentence_length x batch_size]
 
         ### Get max sequence lengths ###
         p_length = p.size(0)
         h_length = h.size(0)
     
         ### Get masks for true sequence length ###
-        mask_p = (p != 1).unsqueeze(2).float()
-        mask_h = (h != 1).unsqueeze(2).float()
+        mask_p = get_masks(p)
+        mask_h = get_masks(h)
+
         
         ### Embed inputs ###
         p = self.emb_drop(self.embed(p))
@@ -232,5 +235,80 @@ class ESIM(nn.Module):
         h_mlp = F.tanh(self.mlp(v))
         h_mlp = self.dropout(h_mlp)
         output = self.cl(h_mlp)
+
+        return output
+
+class DA(nn.Module):
+    def __init__(self, config):
+        super(DA, self).__init__()
+
+        self.config = config
+        self.embed = nn.Embedding(config.n_embed, config.d_embed)
+        self.relu = nn.ReLU()
+
+        self.F = MLP([[l_in, l_out],[l_in, l_out]], d_out, config.dropout_mlp, self.relu)
+        self.G = MLP()
+        self.H = MLP()
+
+        self.out = nn.Linear(hiddensize, config.d_out, bias=True)
+
+    def forward(self, X):
+        p = self.embed(X.premise)
+        h = self.embed(X.hypothesis)
+
+        #TODO Prepend NULL character?
+
+        #TODO Apply F
+
+        if self._intra_sentence:
+            #TODO
+
+        #TODO USE MASKS
+        sim_scores = torch.bmm()
+        score_premise = softmax(sim_scores)
+        score_hypothesis = softmax(sim_scores w/ transpose)
+
+        attended_p = p * score_hypothesis
+        attended_h = h * score_premise
+
+        combined_p = torch.cat(p,attended_p)
+        combined_h = torch.cat(h, attened_h)
+
+        #TODO Apply G
+        #TODO Sum & Squeeze
+
+        #TODO Combine two outputs
+
+        #TODO Apply H
+
+        #TODO Apply out, softmax
+
+
+        # Shape: (batch_size, premise_length, hypothesis_length)
+        p2h_attention = last_dim_softmax(similarity_matrix, hypothesis_mask)
+        # Shape: (batch_size, premise_length, embedding_dim)
+        attended_hypothesis = weighted_sum(embedded_hypothesis, p2h_attention)
+
+        # Shape: (batch_size, hypothesis_length, premise_length)
+        h2p_attention = last_dim_softmax(similarity_matrix.transpose(1, 2).contiguous(), premise_mask)
+        # Shape: (batch_size, hypothesis_length, embedding_dim)
+        attended_premise = weighted_sum(embedded_premise, h2p_attention)
+
+        premise_compare_input = torch.cat([embedded_premise, attended_hypothesis], dim=-1)
+        hypothesis_compare_input = torch.cat([embedded_hypothesis, attended_premise], dim=-1)
+
+        compared_premise = self._compare_feedforward(premise_compare_input)
+        compared_premise = compared_premise * premise_mask.unsqueeze(-1)
+        # Shape: (batch_size, compare_dim)
+        compared_premise = compared_premise.sum(dim=1)
+
+        compared_hypothesis = self._compare_feedforward(hypothesis_compare_input)
+        compared_hypothesis = compared_hypothesis * hypothesis_mask.unsqueeze(-1)
+        # Shape: (batch_size, compare_dim)
+        compared_hypothesis = compared_hypothesis.sum(dim=1)
+
+        aggregate_input = torch.cat([compared_premise, compared_hypothesis], dim=-1)
+        label_logits = self._aggregate_feedforward(aggregate_input)
+        label_probs = torch.nn.functional.softmax(label_logits)
 
         return output
