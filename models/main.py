@@ -13,7 +13,7 @@ sys.path.append('../utilities')
 from tokenizers import custom_tokenizer
 from utils import get_dataset, get_args
 
-nltk.download('punkt')
+nltk.download('punkt', download_dir='../')
 
 MODELS = {'ConcatModel': ConcatModel,
           'CosineModel': CosineModel,
