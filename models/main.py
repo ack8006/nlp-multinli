@@ -8,7 +8,7 @@ from torchtext import data
 import nltk
 import numpy as np
 
-from models import ConcatModel, CosineModel, ESIM
+from models import ConcatModel, CosineModel, DA, ESIM
 sys.path.append('../utilities')
 from tokenizers import custom_tokenizer
 from utils import get_dataset, get_args
@@ -19,6 +19,7 @@ nltk.data.path.append(nltk_path)
 
 MODELS = {'ConcatModel': ConcatModel,
           'CosineModel': CosineModel,
+          'DA': DA,          
           'ESIM': ESIM}
 
 def early_stop(val_acc_history, t=3, required_progress=0.01):
