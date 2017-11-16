@@ -268,8 +268,6 @@ class DA(nn.Module):
         self.mlp_G = MLP(((self.d_embed * 2, self.d_hidden),), self.d_hidden, config.dropout_mlp, self.relu)
         self.mlp_H = MLP(((self.d_hidden * 2, self.d_hidden),), self.d_hidden, config.dropout_mlp, self.relu)
 
-        self.LogSoftmax = nn.LogSoftmax()
-
         self.out = nn.Linear(self.d_hidden, config.d_out, bias=True)
 
     def forward(self, X):
@@ -321,6 +319,6 @@ class DA(nn.Module):
 
         #Apply H
         output = self.mlp_H(torch.cat((p_output, h_output), 1))
-        output = self.LogSoftmax(self.out(output))
+        output = self.out(output)
 
         return output
