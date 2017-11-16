@@ -1,5 +1,5 @@
 import sys
-
+import os
 from comet_ml import Experiment
 import torch
 import torch.nn as nn
@@ -13,7 +13,9 @@ sys.path.append('../utilities')
 from tokenizers import custom_tokenizer
 from utils import get_dataset, get_args
 
-nltk.download('punkt', download_dir='../')
+nltk_path = os.getcwd() + '/nltk_data'
+nltk.download('punkt', download_dir=nltk_path)
+nltk.data.path.append(nltk_path)
 
 MODELS = {'ConcatModel': ConcatModel,
           'CosineModel': CosineModel,
