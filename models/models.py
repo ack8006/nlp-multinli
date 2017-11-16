@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from scipy.spatial.distance import cosine
 
+
 def get_masks(input, pad_token=1):
     return (input != pad_token).unsqueeze(2).float()
 
@@ -17,7 +18,7 @@ def softmask(input, mask):
     assert len_2 == mask.size(1)
 
     exp_input = torch.exp(input)
-    divisors = torch.bmm(input, mask).view(batch_size, len_1) # batch_size x len_1
+    divisors = torch.bmm(exp_input, mask).view(batch_size, len_1) # batch_size x len_1
     masked = torch.mul(exp_input, torch.transpose(mask.expand(batch_size, len_2, len_1), 1, 2))
 
     return torch.div(
@@ -40,6 +41,20 @@ class MLP(nn.Module):
         if batch_norm:
             self.mlp.add_module('BN_Out', nn.BatchNorm1d(layers[-1][1]))
         self.mlp.add_module('Linear_Out', nn.Linear(layers[-1][1], d_out))
+
+    def forward(self, X):
+        return self.mlp(X)
+
+class DA_MLP(nn.Module):
+    def __init__(self, layers, dropout, activation):
+        super(DA_MLP, self).__init__()
+        self.mlp = nn.Sequential()
+        self.dropout = nn.Dropout(dropout)
+
+        for ind, (l_in, l_out) in enumerate(layers):
+            self.mlp.add_module('Dropout_{}'.format(ind), self.dropout)
+            self.mlp.add_module('Linear_{}'.format(ind), nn.Linear(l_in, l_out))
+            self.mlp.add_module('Activation_{}'.format(ind), activation)
 
     def forward(self, X):
         return self.mlp(X)
@@ -268,113 +283,77 @@ class DA(nn.Module):
         self.d_embed = config.d_embed
         self.d_hidden = config.d_hidden
 
-        self.mlp_F = MLP(((self.d_embed, self.d_embed),), self.d_embed, config.dropout_mlp, self.relu, batch_norm=False)
-        self.mlp_G = MLP(((self.d_embed * 2, self.d_hidden),), self.d_hidden, config.dropout_mlp, self.relu, batch_norm=False)
-        self.mlp_H = MLP(((self.d_hidden * 2, self.d_hidden),), self.d_hidden, config.dropout_mlp, self.relu, batch_norm=False)
+        self.mlp_F = DA_MLP(((self.d_embed, self.d_embed),(self.d_embed, self.d_embed)), config.dropout_mlp, self.relu)
+        self.mlp_G = DA_MLP(((self.d_embed * 2, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
+        self.mlp_H = DA_MLP(((self.d_hidden * 2, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
 
-        self.out = nn.Linear(self.d_hidden, config.d_out, bias=True)
+        self.out = nn.Linear(self.d_hidden, config.d_out)
+
+        '''initialize parameters'''
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                m.weight.data.normal_(0, 0.01)
+                m.bias.data.normal_(0, 0.01)
 
     def forward(self, X):
-        print_index = 0
 
         p = torch.transpose(X.premise, 0, 1)
         h = torch.transpose(X.hypothesis, 0, 1)
-
-        # print('p', p.size(), 'h', h.size())
-
-        # print(print_index, p[0], h[0])
-        # print_index += 1
-        # # print('h', h)
 
         ### Get max sequence lengths ###
         p_length = p.size(1)
         h_length = h.size(1)
 
-        # print(print_index, 'p_length = {}'.format(p_length), 'h_length = {}'.format(h_length))
-        # print_index+=1
-
         ### Get masks for true sequence length ###
         p_mask = get_masks(p)
         h_mask = get_masks(h)
-
-        # print('p_mask', p_mask)
-        # print('h_mask', h_mask)
-
-        # print(print_index, p_mask[0], h_mask[0])
-        # print_index += 1
 
         #Embed premise & hypothesis
         p_embedded = self.embed(p)
         h_embedded = self.embed(h)
 
-        # print(print_index, p_embedded[0])
-        # print_index += 1
-
         del p, h
 
-        #Apply F
-        p = self.mlp_F(p_embedded.view(-1,self.d_embed)).view(-1, p_length, self.d_embed)
-        h = self.mlp_F(h_embedded.view(-1,self.d_embed)).view(-1, h_length, self.d_embed)
-
-        # print('F(p)', p.size())
-        # print('F(h)', h.size())
-
-        # print(print_index, p_embedded.view(-1,self.d_embed)[0], p_embedded.view(-1,self.d_embed).size())
-        # print_index += 1
+        # Apply F
+        F_p = self.mlp_F(p_embedded.view(-1,self.d_embed)).view(-1, p_length, self.d_embed)
+        F_h = self.mlp_F(h_embedded.view(-1,self.d_embed)).view(-1, h_length, self.d_embed)
 
         # if self._intra_sentence:
         #     # TODO
 
-        ###Attend
-        sim_scores = torch.bmm(p, torch.transpose(h, 1, 2))
-
-        # print('sim_scores', sim_scores.size())
+        # Attend
+        sim_scores = torch.bmm(F_p, torch.transpose(F_h, 1, 2))
 
         p_probs = softmask(sim_scores, h_mask)
-        h_probs = softmask(torch.transpose(sim_scores,1,2),p_mask)
-
-        # print('p_probs',p_probs.size(), 'h_probs', h_probs.size())
+        h_probs = softmask(torch.transpose(sim_scores, 1, 2), p_mask)
 
         del sim_scores, p_mask, h_mask
 
         attended_p = torch.bmm(h_probs, p_embedded)
         attended_h = torch.bmm(p_probs, h_embedded)
 
-        # print('attended_p',attended_p.size(), 'attended_h', attended_h.size())
-
-        del p_embedded, h_embedded, h_probs, p_probs
+        del h_probs, p_probs
 
         ###Combine
-        combined_p = torch.cat((p, attended_h), 2)
-        combined_h = torch.cat((h, attended_p), 2)
+        combined_p = torch.cat((p_embedded, attended_h), 2)
+        combined_h = torch.cat((h_embedded, attended_p), 2)
 
-        # print('combine_time', 'p', p.size(), 'attended_h', attended_h.size(), 'combined_p', combined_p.size())
-
-        del attended_p, attended_h, p, h
+        del attended_p, attended_h
 
         #Apply G
-        p = self.mlp_G(combined_p.view(-1, 2 * self.d_embed))
-        h = self.mlp_G(combined_h.view(-1, 2 * self.d_embed))
+        G_p = self.mlp_G(combined_p.view(-1, 2 * self.d_embed))
+        G_h = self.mlp_G(combined_h.view(-1, 2 * self.d_embed))
 
         del combined_p, combined_h
 
-        # print('post_G_p', p.view(-1, p_length, self.d_hidden).size())
-        # print('post_G_h', h.view(-1, h_length, self.d_hidden).size())
+        p_output = torch.sum(G_p.view(-1, p_length, self.d_hidden), 1)
+        h_output = torch.sum(G_h.view(-1, h_length, self.d_hidden), 1)
 
-        p_output = torch.sum(p.view(-1, p_length, self.d_hidden), 1)
-        h_output = torch.sum(h.view(-1, h_length, self.d_hidden), 1)
+        del G_p, G_h
 
-        # print('p_output', p_output.size())
-        # print('h_output', h_output.size())
-
-        del p, h
-
-        #Apply H
-        # print('output_1', torch.cat((p_output, h_output), 1).size())
+        # Apply H
         output = self.mlp_H(torch.cat((p_output, h_output), 1))
-        # print('output_2', output.size())
         output = self.out(output)
-        # print('output_3', output.size())
-        # print(output)
+        print(output)
 
         return output
