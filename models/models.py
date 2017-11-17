@@ -329,13 +329,14 @@ class DA(nn.Module):
 
         # Attend
         sim_scores = torch.bmm(F_p, torch.transpose(F_h, 1, 2))
-        p_probs = F.softmax(sim_scores.view(batch_size * p_length, h_length)).view(batch_size, p_length, h_length)
-
-        # p_probs = softmask(sim_scores, h_mask)
-        # h_probs = softmask(torch.transpose(sim_scores, 1, 2), p_mask)
-
         sim_scores2 = torch.transpose(sim_scores.contiguous(), 1, 2).contiguous()
-        h_probs = F.softmax(sim_scores2.view(batch_size * h_length, p_length)).view(batch_size, h_length, p_length)
+
+        # p_probs = F.softmax(sim_scores.view(batch_size * p_length, h_length)).view(batch_size, p_length, h_length)
+        # h_probs = F.softmax(sim_scores2.view(batch_size * h_length, p_length)).view(batch_size, h_length, p_length)
+
+        p_probs = softmask(sim_scores, h_mask)
+        h_probs = softmask(torch.transpose(sim_scores, 1, 2), p_mask)
+
 
         ###Combine
         combined_p = torch.cat((p_linear, torch.bmm(p_probs, h_linear)), 2)
