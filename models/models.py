@@ -283,11 +283,13 @@ class DA(nn.Module):
         self.d_embed = config.d_embed
         self.d_hidden = config.d_hidden
 
-        self.mlp_F = DA_MLP(((self.d_embed, self.d_embed),(self.d_embed, self.d_embed)), config.dropout_mlp, self.relu)
-        self.mlp_G = DA_MLP(((self.d_embed * 2, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
+        self.in_linear = nn.Linear(self.d_embed, self.d_hidden)
+
+        self.mlp_F = DA_MLP(((self.d_hidden, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
+        self.mlp_G = DA_MLP(((self.d_hidden * 2, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
         self.mlp_H = DA_MLP(((self.d_hidden * 2, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
 
-        self.out = nn.Linear(self.d_hidden, config.d_out)
+        self.out_linear = nn.Linear(self.d_hidden, config.d_out)
 
         '''initialize parameters'''
         for m in self.modules():
@@ -300,6 +302,8 @@ class DA(nn.Module):
         p = torch.transpose(X.premise, 0, 1)
         h = torch.transpose(X.hypothesis, 0, 1)
 
+        batch_size = p.size(0)
+
         ### Get max sequence lengths ###
         p_length = p.size(1)
         h_length = h.size(1)
@@ -308,52 +312,44 @@ class DA(nn.Module):
         p_mask = get_masks(p)
         h_mask = get_masks(h)
 
-        #Embed premise & hypothesis
+        # Embed premise & hypothesis
         p_embedded = self.embed(p)
         h_embedded = self.embed(h)
 
-        del p, h
+        # Apply initial linear encoding
+        p_linear = self.in_linear(p_embedded.view(batch_size * p_length, self.d_embed)).view(batch_size, p_length, self.d_hidden)
+        h_linear = self.in_linear(h_embedded.view(batch_size * h_length, self.d_embed)).view(batch_size, h_length, self.d_hidden)
 
         # Apply F
-        F_p = self.mlp_F(p_embedded.view(-1,self.d_embed)).view(-1, p_length, self.d_embed)
-        F_h = self.mlp_F(h_embedded.view(-1,self.d_embed)).view(-1, h_length, self.d_embed)
+        F_p = self.mlp_F(p_linear.view(batch_size * p_length, self.d_hidden)).view(batch_size, p_length, self.d_hidden)
+        F_h = self.mlp_F(h_linear.view(batch_size * h_length, self.d_hidden)).view(batch_size, h_length, self.d_hidden)
 
         # if self._intra_sentence:
         #     # TODO
 
         # Attend
         sim_scores = torch.bmm(F_p, torch.transpose(F_h, 1, 2))
+        p_probs = F.softmax(sim_scores.view(batch_size * p_length, h_length)).view(batch_size, p_length, h_length)
 
-        p_probs = softmask(sim_scores, h_mask)
-        h_probs = softmask(torch.transpose(sim_scores, 1, 2), p_mask)
+        # p_probs = softmask(sim_scores, h_mask)
+        # h_probs = softmask(torch.transpose(sim_scores, 1, 2), p_mask)
 
-        del sim_scores, p_mask, h_mask
-
-        attended_p = torch.bmm(h_probs, p_embedded)
-        attended_h = torch.bmm(p_probs, h_embedded)
-
-        del h_probs, p_probs
+        sim_scores2 = torch.transpose(sim_scores.contiguous(), 1, 2).contiguous()
+        h_probs = F.softmax(sim_scores2.view(batch_size * h_length, p_length)).view(batch_size, h_length, p_length)
 
         ###Combine
-        combined_p = torch.cat((p_embedded, attended_h), 2)
-        combined_h = torch.cat((h_embedded, attended_p), 2)
-
-        del attended_p, attended_h
+        combined_p = torch.cat((p_linear, torch.bmm(p_probs, h_linear)), 2)
+        combined_h = torch.cat((h_linear, torch.bmm(h_probs, p_linear)), 2)
 
         #Apply G
-        G_p = self.mlp_G(combined_p.view(-1, 2 * self.d_embed))
-        G_h = self.mlp_G(combined_h.view(-1, 2 * self.d_embed))
+        G_p = self.mlp_G(combined_p.view(batch_size * p_length, 2 * self.d_hidden))
+        G_h = self.mlp_G(combined_h.view(batch_size * h_length, 2 * self.d_hidden))
 
-        del combined_p, combined_h
-
-        p_output = torch.sum(G_p.view(-1, p_length, self.d_hidden), 1)
-        h_output = torch.sum(G_h.view(-1, h_length, self.d_hidden), 1)
-
-        del G_p, G_h
+        p_output = torch.sum(G_p.view(batch_size, p_length, self.d_hidden), 1)
+        h_output = torch.sum(G_h.view(batch_size, h_length, self.d_hidden), 1)
 
         # Apply H
         output = self.mlp_H(torch.cat((p_output, h_output), 1))
-        output = self.out(output)
-        print(output)
+        output = self.out_linear(output)
 
         return output
