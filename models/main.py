@@ -8,7 +8,7 @@ from torchtext import data
 import nltk
 import numpy as np
 
-from models import ConcatModel, CosineModel, ESIM
+from models import ConcatModel, CosineModel, ESIM, DA
 sys.path.append('../utilities')
 from tokenizers import custom_tokenizer
 from utils import get_dataset, get_args
@@ -19,6 +19,7 @@ nltk.data.path.append(nltk_path)
 
 MODELS = {'ConcatModel': ConcatModel,
           'CosineModel': CosineModel,
+          'DA': DA,
           'ESIM': ESIM}
 
 def early_stop(val_acc_history, t=3, required_progress=0.01):
@@ -50,6 +51,8 @@ def main():
 
     args = get_args()
     experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
+    # experiment = Experiment(api_key="testing locally", log_code=True)
+
     hyperparams = vars(args)
     experiment.log_multiple_params(hyperparams)
 
@@ -94,7 +97,7 @@ def main():
         model.embed.weight.data = text_field.vocab.vectors
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
 
     if args.cuda:
         model = model.cuda()
