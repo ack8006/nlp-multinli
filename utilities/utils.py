@@ -45,7 +45,7 @@ def get_args():
     parser = ArgumentParser(description='PyTorch MultiNLI Model')
     parser.add_argument('--model_type', type=str)
     parser.add_argument('--val_set', type=str, default='val_matched',
-                        help='Which Val Set (val_matched, val_unmatched')
+                        help='Which Val Set (val_matched, val_mismatched')
     parser.add_argument('--max_vocab_size', type=int, default=20000)
     parser.add_argument('--n_epochs', type=int, default=40)
     parser.add_argument('--batch_size', type=int, default=128)
