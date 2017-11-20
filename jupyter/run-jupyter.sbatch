@@ -9,7 +9,9 @@
 module purge
 module load jupyter-kernels/py3.5
 module load pytorch/python3.5/0.2.0_3
-module load torchvision/python3.5/0.1.9
+module load nltk/python3.5/3.2.4
+module load pytorch/python3.5/0.2.0_3
+python3 -m pip install https://github.com/pytorch/text/archive/master.zip --user
 
 port=$(shuf -i 6000-9999 -n 1)
 
