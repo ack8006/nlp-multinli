@@ -273,11 +273,19 @@ class ESIM(nn.Module):
         return output
 
 class DA(nn.Module):
+    # TODO  Out-of-vocabulary (OOV) words are
+    # hashed to one of 100 random embeddings
+    # each initialized to mean 0 and standard
+    # deviation 1.
     def __init__(self, config):
         super(DA, self).__init__()
 
         self.config = config
         self.embed = nn.Embedding(config.n_embed, config.d_embed)
+
+        # So embedding doesn't change
+        self.embed.weight.requires_grad = False
+
         self.relu = nn.ReLU()
 
         self.d_embed = config.d_embed
@@ -316,6 +324,13 @@ class DA(nn.Module):
         p_embedded = self.embed(p)
         h_embedded = self.embed(h)
 
+        # Normalize embeddings
+        norm = p_embedded.norm(p=2, dim=2, keepdim=True)
+        p_embedded = p_embedded.div(norm.expand_as(p_embedded))
+
+        norm = h_embedded.norm(p=2, dim=2, keepdim=True)
+        h_embedded = h_embedded.div(norm.expand_as(h_embedded))
+
         # Apply initial linear encoding
         p_linear = self.in_linear(p_embedded.view(batch_size * p_length, self.d_embed)).view(batch_size, p_length, self.d_hidden)
         h_linear = self.in_linear(h_embedded.view(batch_size * h_length, self.d_embed)).view(batch_size, h_length, self.d_hidden)
@@ -324,12 +339,13 @@ class DA(nn.Module):
         F_p = self.mlp_F(p_linear.view(batch_size * p_length, self.d_hidden)).view(batch_size, p_length, self.d_hidden)
         F_h = self.mlp_F(h_linear.view(batch_size * h_length, self.d_hidden)).view(batch_size, h_length, self.d_hidden)
 
-        # if self._intra_sentence:
+        # if self.intra_sentence:
         #     # TODO
 
         # Attend
         sim_scores = torch.bmm(F_p, torch.transpose(F_h, 1, 2))
-        sim_scores2 = torch.transpose(sim_scores.contiguous(), 1, 2).contiguous()
+
+        # sim_scores2 = torch.transpose(sim_scores.contiguous(), 1, 2).contiguous()
 
         # p_probs = F.softmax(sim_scores.view(batch_size * p_length, h_length)).view(batch_size, p_length, h_length)
         # h_probs = F.softmax(sim_scores2.view(batch_size * h_length, p_length)).view(batch_size, h_length, p_length)
