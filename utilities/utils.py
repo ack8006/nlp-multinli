@@ -5,6 +5,7 @@ from torchtext import data
 
 FILES = {
     'train': ('multinli_1.0_train.txt', 'train.tsv'),
+    # 'train': ('multinli_1.0_dev_matched.txt', 'val_match.tsv'),
     'val_matched': ('multinli_1.0_dev_matched.txt', 'val_match.tsv'),
 
     # 'train': ('snli_1.0_train.txt', 'snli_train.tsv'),
