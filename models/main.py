@@ -51,8 +51,8 @@ def sort_key(ex):
 def main():
 
     args = get_args()
-    # experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
-    experiment = Experiment(api_key="testing locally", log_code=True)
+    experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
+    # experiment = Experiment(api_key="testing locally", log_code=True)
 
     hyperparams = vars(args)
     experiment.log_multiple_params(hyperparams)
