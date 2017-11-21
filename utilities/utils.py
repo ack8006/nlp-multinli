@@ -3,9 +3,15 @@ from argparse import ArgumentParser
 from torchtext import data
 
 
-FILES = {'train': ('multinli_1.0_train.txt', 'train.tsv'),
-         'val_matched': ('multinli_1.0_dev_matched.txt', 'val_match.tsv'),
-         'val_mismatched': ('multinli_1.0_dev_mismatched.txt', 'val_mismatch.tsv')}
+FILES = {
+    'train': ('multinli_1.0_train.txt', 'train.tsv'),
+    'val_matched': ('multinli_1.0_dev_matched.txt', 'val_match.tsv'),
+
+    # 'train': ('snli_1.0_train.txt', 'snli_train.tsv'),
+    # 'val_matched': ('snli_1.0_dev.txt', 'snli_dev.tsv'),
+
+    'val_mismatched': ('multinli_1.0_dev_mismatched.txt', 'val_mismatch.tsv')
+}
 
 
 def tsv_file_existence_check(file_txt, file_tsv):
@@ -49,6 +55,7 @@ def get_args():
     parser.add_argument('--max_vocab_size', type=int, default=20000)
     parser.add_argument('--n_epochs', type=int, default=40)
     parser.add_argument('--batch_size', type=int, default=128)
+    parser.add_argument('--intra_sentence', type=bool, default=False)
     parser.add_argument('--sentence_len', type=int, default=None)
     parser.add_argument('--d_embed', type=int, default=200)
     # parser.add_argument('--d_proj', type=int, default=200)
