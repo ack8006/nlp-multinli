@@ -51,8 +51,8 @@ def sort_key(ex):
 def main():
 
     args = get_args()
-    # experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
-    experiment = Experiment(api_key="testing locally", log_code=True)
+    experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
+    # experiment = Experiment(api_key="testing locally", log_code=True)
 
     hyperparams = vars(args)
     experiment.log_multiple_params(hyperparams)
@@ -124,7 +124,6 @@ def main():
             if (batch_ind != 0) and (batch_ind % args.dev_every == 0):
                 val_correct, val_loss = evaluate(val_iter, model, criterion)
                 val_accuracy = 100 * val_correct / len(val)
-                val_acc_history.append(val_accuracy)
 
                 print('    Batch Step {}/{}, Val Loss: {:.4f}, Val Accuracy: {:.4f}'.\
                             format(batch_ind,
@@ -132,14 +131,12 @@ def main():
                                    val_loss,
                                    val_accuracy))
 
-            stop_training = early_stop(val_acc_history)
-
-            if stop_training:
-                break
-
         train_correct, train_loss = evaluate(train_iter, model, criterion)
         val_correct, val_loss = evaluate(val_iter, model, criterion)
         val_accuracy = 100 * val_correct / len(val)
+        val_acc_history.append(val_accuracy)
+
+        stop_training = early_stop(val_acc_history)
 
         experiment.log_metric("Train loss", train_loss)
         experiment.log_metric("Val loss", val_loss)
@@ -164,9 +161,9 @@ def main():
                        val_accuracy,
                        best_val_acc))
 
-        # if stop_training:
-        #     print('Early stop triggered.')
-        #     break
+        if stop_training:
+            print('Early stop triggered.')
+            break
 
 
 def evaluate(iterator, model, criterion):

@@ -382,7 +382,7 @@ class DA(nn.Module):
             F_p = self.mlp_F(p_linear.view(batch_size * p_length, -1)).view(batch_size, p_length, self.d_hidden)
             F_h = self.mlp_F(h_linear.view(batch_size * h_length, -1)).view(batch_size, h_length, self.d_hidden)
 
-        Attend
+        # Attend
         sim_scores = torch.bmm(F_p, torch.transpose(F_h, 1, 2))
 
         p_probs = softmask(sim_scores, h_mask)
