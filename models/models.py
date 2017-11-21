@@ -149,21 +149,25 @@ class ConcatModel(nn.Module):
 
         # Forward Pass
         h_fw, c_fw = self.hidden_init(batch_size, self.config.d_embed)
-        premise_hidden_fw, hypothesis_hidden_fw = [], []
+        premise_fw, hypothesis_fw = [], []
         for word_input in torch.cat([premise, hypothesis], dim=1):
             h_fw, c_fw = self.cell(word_input, (h_fw, c_fw))
-            premise_hidden_fw.append(h_fw[:batch_size])
-            hypothesis_hidden_fw.append(h_fw[batch_size:])
+            premise_fw.append(h_fw[:batch_size])
+            hypothesis_fw.append(h_fw[batch_size:])
 
         # Backward Pass
         h_bw, c_bw = self.hidden_init(batch_size, self.config.d_embed)
-        premise_hidden_bw, hypothesis_hidden_bw = [], []
+        premise_bw, hypothesis_bw = [], []
         for word_input in combined:
             h_bw, c_bw = self.cell(word_input, (h_bw, c_bw))
-            premise_hidden_bw.append(h_bw[:batch_size])
-            hypothesis_hidden_bw.append(h_bw[batch_size:])
+            premise_bw.append(h_bw[:batch_size])
+            hypothesis_bw.append(h_bw[batch_size:])
 
-        return self.out(torch.cat([premise, hypothesis], dim=1))
+        # return self.out(torch.cat([premise, hypothesis], dim=1))
+        return self.out(torch.cat([premise_fw[-1],
+                                   premise_bw[-1],
+                                   hypothesis_fw[-1],
+                                   hypothesis_bw[-1]], dim=1))
 
     def hidden_init(self, batch_size, d_embed):
         return (Variable(torch.Tensor(batch_size, self.config.d_embed).zero_()),
