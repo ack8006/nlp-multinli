@@ -23,6 +23,7 @@ def softmask(input, mask):
 
     return masked.div(divisors.unsqueeze(2).expand_as(masked))  # batch_size x len_1 x len_2
 
+
 class MLP(nn.Module):
     def __init__(self, layers, d_out, dropout, activation, batch_norm=True):
         super(MLP, self).__init__()
@@ -194,9 +195,9 @@ class ESIM(nn.Module):
         premise_bi, states = self.premise(p)
         hypothesis_bi, states = self.hypothesis(h)
 
-        def unstack(tensor, dim):
-            return [torch.squeeze(x) for x in torch.split(tensor, 1, dim=dim)]
-            
+        # def unstack(tensor, dim):
+        #     return [torch.squeeze(x) for x in torch.split(tensor, 1, dim=dim)]
+        #
         premise_list = unstack(premise_bi, 0)
         hypothesis_list = unstack(hypothesis_bi, 0)
                 
@@ -286,14 +287,33 @@ class DA(nn.Module):
         self.embed.weight.requires_grad = False
 
         self.relu = nn.ReLU()
+        # self.relu = nn.LeakyReLU()
 
         self.d_embed = config.d_embed
         self.d_hidden = config.d_hidden
 
-        self.in_linear = nn.Linear(self.d_embed, self.d_hidden)
+        self.in_linear = nn.Linear(self.d_embed, self.d_hidden, bias=False)
+
+        def _mlp_layers(input_dim, output_dim):
+            mlp_layers = []
+            mlp_layers.append(nn.Linear(
+                input_dim, output_dim, bias=True))
+            mlp_layers.append(self.relu)
+            mlp_layers.append(nn.BatchNorm1d(output_dim))
+            mlp_layers.append(nn.Dropout(p=0.2))
+            mlp_layers.append(nn.Linear(
+                output_dim, output_dim, bias=True))
+            mlp_layers.append(self.relu)
+            mlp_layers.append(nn.BatchNorm1d(output_dim))
+            mlp_layers.append(nn.Dropout(p=0.2))
+            return nn.Sequential(*mlp_layers)  # * used to unpack list
+
+        self.mlp_F = _mlp_layers(self.d_hidden, self.d_hidden)
+        self.mlp_G = _mlp_layers(self.d_hidden * 2, self.d_hidden)
+        self.mlp_H = _mlp_layers(self.d_hidden * 2, self.d_hidden)
 
         if self.intra_sentence:
-            self.mlp_intra = DA_MLP(((self.d_hidden, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
+            self.mlp_intra = DA_MLP(((self.d_hidden, self.d_hidden), (self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
             self.mlp_F = DA_MLP(((self.d_hidden * 2, self.d_hidden), (self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
         else:
             self.mlp_F = DA_MLP(((self.d_hidden, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
@@ -307,7 +327,8 @@ class DA(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 m.weight.data.normal_(0, 0.01)
-                m.bias.data.normal_(0, 0.01)
+                if m.bias is not None:
+                    m.bias.data.normal_(0, 0.01)
 
     def forward(self, X):
 
@@ -329,11 +350,11 @@ class DA(nn.Module):
         h_embedded = self.embed(h)
 
         # Normalize embeddings
-        norm = p_embedded.norm(p=2, dim=2, keepdim=True)
-        p_embedded = p_embedded.div(norm.expand_as(p_embedded))
-
-        norm = h_embedded.norm(p=2, dim=2, keepdim=True)
-        h_embedded = h_embedded.div(norm.expand_as(h_embedded))
+        # norm = p_embedded.norm(p=2, dim=2, keepdim=True)
+        # p_embedded = p_embedded.div(norm.expand_as(p_embedded))
+        #
+        # norm = h_embedded.norm(p=2, dim=2, keepdim=True)
+        # h_embedded = h_embedded.div(norm.expand_as(h_embedded))
 
         # Apply initial linear encoding
         p_linear = self.in_linear(p_embedded.view(batch_size * p_length, self.d_embed)).view(batch_size, p_length, self.d_hidden)
@@ -361,21 +382,18 @@ class DA(nn.Module):
             F_p = self.mlp_F(p_linear.view(batch_size * p_length, -1)).view(batch_size, p_length, self.d_hidden)
             F_h = self.mlp_F(h_linear.view(batch_size * h_length, -1)).view(batch_size, h_length, self.d_hidden)
 
-        # Attend
+        Attend
         sim_scores = torch.bmm(F_p, torch.transpose(F_h, 1, 2))
 
-        sim_scores2 = torch.transpose(sim_scores.contiguous(), 1, 2).contiguous()
+        p_probs = softmask(sim_scores, h_mask)
+        h_probs = softmask(torch.transpose(sim_scores, 1, 2), p_mask)
 
-        p_probs = F.softmax(sim_scores.view(batch_size * p_length, h_length)).view(batch_size, p_length, h_length)
-        h_probs = F.softmax(sim_scores2.view(batch_size * h_length, p_length)).view(batch_size, h_length, p_length)
-
-        # p_probs = softmask(sim_scores, h_mask)
-        # h_probs = softmask(torch.transpose(sim_scores, 1, 2), p_mask)
-
+        h_attended = torch.bmm(p_probs, h_linear)
+        p_attended = torch.bmm(h_probs, p_linear)
 
         ###Combine
-        combined_p = torch.cat((p_linear, torch.bmm(p_probs, h_linear)), 2)
-        combined_h = torch.cat((h_linear, torch.bmm(h_probs, p_linear)), 2)
+        combined_p = torch.cat((p_linear, h_attended), -1)
+        combined_h = torch.cat((h_linear, p_attended), -1)
 
         #Apply G
         G_p = self.mlp_G(combined_p.view(batch_size * p_length, 2 * self.d_hidden))
@@ -385,7 +403,7 @@ class DA(nn.Module):
         h_output = torch.sum(G_h.view(batch_size, h_length, self.d_hidden), 1)
 
         # Apply H
-        output = self.mlp_H(torch.cat((p_output, h_output), 1))
+        output = self.mlp_H(torch.cat((p_output, h_output), -1))
         output = self.out_linear(output)
 
         return output

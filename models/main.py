@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torchtext import data
 import nltk
 import numpy as np
+from torch.nn.utils import clip_grad_norm
 
 from models import ConcatModel, CosineModel, ESIM, DA
 sys.path.append('../utilities')
@@ -50,8 +51,8 @@ def sort_key(ex):
 def main():
 
     args = get_args()
-    experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
-    # experiment = Experiment(api_key="testing locally", log_code=True)
+    # experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
+    experiment = Experiment(api_key="testing locally", log_code=True)
 
     hyperparams = vars(args)
     experiment.log_multiple_params(hyperparams)
@@ -117,6 +118,7 @@ def main():
             out = model(batch)
             loss = criterion(out, batch.label)
             loss.backward()
+            clip_grad_norm(filter(lambda p: p.requires_grad, model.parameters()), 10)
             optimizer.step()
 
             if (batch_ind != 0) and (batch_ind % args.dev_every == 0):
@@ -162,9 +164,9 @@ def main():
                        val_accuracy,
                        best_val_acc))
 
-        if stop_training:
-            print('Early stop triggered.')
-            break
+        # if stop_training:
+        #     print('Early stop triggered.')
+        #     break
 
 
 def evaluate(iterator, model, criterion):
