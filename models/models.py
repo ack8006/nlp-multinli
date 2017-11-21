@@ -18,13 +18,10 @@ def softmask(input, mask):
     assert len_2 == mask.size(1)
 
     exp_input = torch.exp(input)
-    divisors = torch.bmm(exp_input, mask).view(batch_size, len_1) # batch_size x len_1
+    divisors = torch.bmm(exp_input, mask).view(batch_size, len_1)  # batch_size x len_1
     masked = torch.mul(exp_input, torch.transpose(mask.expand(batch_size, len_2, len_1), 1, 2))
 
-    return torch.div(
-        masked,
-        divisors.unsqueeze(2).expand(batch_size, len_1, len_2)
-    )  # batch_size x len_1 x len_2
+    return masked.div(divisors.unsqueeze(2).expand_as(masked))  # batch_size x len_1 x len_2
 
 class MLP(nn.Module):
     def __init__(self, layers, d_out, dropout, activation, batch_norm=True):
@@ -283,6 +280,8 @@ class DA(nn.Module):
         self.config = config
         self.embed = nn.Embedding(config.n_embed, config.d_embed)
 
+        self.intra_sentence = config.intra_sentence
+
         # So embedding doesn't change
         self.embed.weight.requires_grad = False
 
@@ -293,7 +292,12 @@ class DA(nn.Module):
 
         self.in_linear = nn.Linear(self.d_embed, self.d_hidden)
 
-        self.mlp_F = DA_MLP(((self.d_hidden, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
+        if self.intra_sentence:
+            self.mlp_intra = DA_MLP(((self.d_hidden, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
+            self.mlp_F = DA_MLP(((self.d_hidden * 2, self.d_hidden), (self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
+        else:
+            self.mlp_F = DA_MLP(((self.d_hidden, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
+
         self.mlp_G = DA_MLP(((self.d_hidden * 2, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
         self.mlp_H = DA_MLP(((self.d_hidden * 2, self.d_hidden),(self.d_hidden, self.d_hidden)), config.dropout_mlp, self.relu)
 
@@ -335,23 +339,38 @@ class DA(nn.Module):
         p_linear = self.in_linear(p_embedded.view(batch_size * p_length, self.d_embed)).view(batch_size, p_length, self.d_hidden)
         h_linear = self.in_linear(h_embedded.view(batch_size * h_length, self.d_embed)).view(batch_size, h_length, self.d_hidden)
 
-        # Apply F
-        F_p = self.mlp_F(p_linear.view(batch_size * p_length, self.d_hidden)).view(batch_size, p_length, self.d_hidden)
-        F_h = self.mlp_F(h_linear.view(batch_size * h_length, self.d_hidden)).view(batch_size, h_length, self.d_hidden)
+        if self.intra_sentence:
+            p_intra = self.mlp_intra(p_linear.view(batch_size * p_length, self.d_hidden)).view(batch_size, p_length, self.d_hidden)
+            h_intra = self.mlp_intra(h_linear.view(batch_size * h_length, self.d_hidden)).view(batch_size, h_length, self.d_hidden)
 
-        # if self.intra_sentence:
-        #     # TODO
+            # Self Attend
+            p_self_scores = torch.bmm(p_intra, torch.transpose(p_intra, 1, 2))
+            p_probs = softmask(p_self_scores, p_mask)
+            p_intra = torch.cat((p_linear, torch.bmm(p_probs, p_linear)), 2)
+
+            h_self_scores = torch.bmm(h_intra, torch.transpose(h_intra, 1, 2))
+            h_probs = softmask(h_self_scores, h_mask)
+            h_intra = torch.cat((h_linear, torch.bmm(h_probs, h_linear)), 2)
+
+            # Apply F
+            F_p = self.mlp_F(p_intra.view(batch_size * p_length, -1)).view(batch_size, p_length, self.d_hidden)
+            F_h = self.mlp_F(h_intra.view(batch_size * h_length, -1)).view(batch_size, h_length, self.d_hidden)
+
+        else:
+            # Apply F
+            F_p = self.mlp_F(p_linear.view(batch_size * p_length, -1)).view(batch_size, p_length, self.d_hidden)
+            F_h = self.mlp_F(h_linear.view(batch_size * h_length, -1)).view(batch_size, h_length, self.d_hidden)
 
         # Attend
         sim_scores = torch.bmm(F_p, torch.transpose(F_h, 1, 2))
 
-        # sim_scores2 = torch.transpose(sim_scores.contiguous(), 1, 2).contiguous()
+        sim_scores2 = torch.transpose(sim_scores.contiguous(), 1, 2).contiguous()
 
-        # p_probs = F.softmax(sim_scores.view(batch_size * p_length, h_length)).view(batch_size, p_length, h_length)
-        # h_probs = F.softmax(sim_scores2.view(batch_size * h_length, p_length)).view(batch_size, h_length, p_length)
+        p_probs = F.softmax(sim_scores.view(batch_size * p_length, h_length)).view(batch_size, p_length, h_length)
+        h_probs = F.softmax(sim_scores2.view(batch_size * h_length, p_length)).view(batch_size, h_length, p_length)
 
-        p_probs = softmask(sim_scores, h_mask)
-        h_probs = softmask(torch.transpose(sim_scores, 1, 2), p_mask)
+        # p_probs = softmask(sim_scores, h_mask)
+        # h_probs = softmask(torch.transpose(sim_scores, 1, 2), p_mask)
 
 
         ###Combine
