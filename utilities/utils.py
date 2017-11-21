@@ -72,6 +72,7 @@ def get_args():
     parser.add_argument('--bidir', action='store_true')
     parser.add_argument('--cuda', action='store_true')
     parser.add_argument('--save_model', action='store_true')
+    parser.add_argument('--no_comet', action='store_true')
     parser.add_argument('--dev_every', type=int, default=300)
     parser.add_argument('--load_model', type=str, default='')
     args = parser.parse_args()
