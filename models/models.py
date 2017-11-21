@@ -81,18 +81,59 @@ class Encoder(nn.Module):
             return ht[-2:].transpose(0, 1).contiguous().view(batch_size, -1)
 
 
+class EncoderCell(nn.Module):
+    '''
+        @return: h1, c1
+    '''
+
+    def __init__(self, d_embed, d_hidden):
+        super(EncoderCell, self).__init__()
+        self.cell = nn.LSTMCell(input_size=d_embed,
+                                hidden_size=d_hidden,
+                                bias=True)
+
+    def forward(self, X, h0, c0):
+        return self.cell(X, (h0, c0))
+
+# class ConcatModel(nn.Module):
+#     def __init__(self, config):
+#         super(ConcatModel, self).__init__()
+
+#         self.config = config
+#         self.embed = nn.Embedding(config.n_embed, config.d_embed)
+#         self.encoder = Encoder(config)
+#         self.relu = nn.ReLU()
+
+#         seq_in_size = 2 * config.d_hidden
+#         if config.bidir:
+#             seq_in_size *= 2
+#         layers = [[seq_in_size] * 2] * config.n_linear_layers
+
+#         self.out = MLP(layers, config.d_out, config.dropout_mlp, self.relu)
+
+#     def forward(self, X):
+#         premise = self.embed(X.premise)
+#         hypothesis = self.embed(X.hypothesis)
+
+#         premise = self.encoder(premise)
+#         hypothesis = self.encoder(hypothesis)
+
+#         return self.out(torch.cat([premise, hypothesis], 1))
+
+
 class ConcatModel(nn.Module):
     def __init__(self, config):
         super(ConcatModel, self).__init__()
 
         self.config = config
         self.embed = nn.Embedding(config.n_embed, config.d_embed)
-        self.encoder = Encoder(config)
+        self.cell = EncoderCell(config.d_embed, config.d_hidden)
         self.relu = nn.ReLU()
 
         seq_in_size = 2 * config.d_hidden
         if config.bidir:
             seq_in_size *= 2
+        seq_in_size += 1
         layers = [[seq_in_size] * 2] * config.n_linear_layers
 
         self.out = MLP(layers, config.d_out, config.dropout_mlp, self.relu)
@@ -101,10 +142,32 @@ class ConcatModel(nn.Module):
         premise = self.embed(X.premise)
         hypothesis = self.embed(X.hypothesis)
 
-        premise = self.encoder(premise)
-        hypothesis = self.encoder(hypothesis)
+        batch_size = premise.size(1)
 
-        return self.out(torch.cat([premise, hypothesis], 1))
+        # Combine Premise and Hypothesis
+        combined = torch.cat([premise, hypothesis], dim=1)
+
+        # Forward Pass
+        h_fw, c_fw = self.hidden_init(batch_size, self.config.d_embed)
+        premise_hidden_fw, hypothesis_hidden_fw = [], []
+        for word_input in torch.cat([premise, hypothesis], dim=1):
+            h_fw, c_fw = self.cell(word_input, (h_fw, c_fw))
+            premise_hidden_fw.append(h_fw[:batch_size])
+            hypothesis_hidden_fw.append(h_fw[batch_size:])
+
+        # Backward Pass
+        h_bw, c_bw = self.hidden_init(batch_size, self.config.d_embed)
+        premise_hidden_bw, hypothesis_hidden_bw = [], []
+        for word_input in combined:
+            h_bw, c_bw = self.cell(word_input, (h_bw, c_bw))
+            premise_hidden_bw.append(h_bw[:batch_size])
+            hypothesis_hidden_bw.append(h_bw[batch_size:])
+
+        return self.out(torch.cat([premise, hypothesis], dim=1))
+
+    def hidden_init(self, batch_size, d_embed):
+        return (Variable(torch.Tensor(batch_size, self.config.d_embed).zero_()),
+                Variable(torch.Tensor(batch_size, self.config.d_embed).zero_()))
 
 
 class CosineModel(nn.Module):

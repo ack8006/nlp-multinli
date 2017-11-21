@@ -3,7 +3,6 @@ import os
 from comet_ml import Experiment
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torchtext import data
 import nltk
 import numpy as np
@@ -28,9 +27,9 @@ def early_stop(val_acc_history, t=3, required_progress=0.01):
     """
     Stop the training if there is no non-trivial progress in k steps
     @param val_acc_history: a list contains all the historical validation acc
-    @param required_progress: the next acc should be higher than the previous by 
+    @param required_progress: the next acc should be higher than the previous by
         at least required_progress amount to be non-trivial
-    @param t: number of training steps 
+    @param t: number of training steps
     @return: a boolean indicates if the model should early stop
     """
 
