@@ -162,20 +162,18 @@ class ConcatModel(nn.Module):
             premise_bw.append(h_bw[:batch_size])
             hypothesis_bw.append(h_bw[batch_size:])
 
-        print(len(premise_bw), len(hypothesis_bw), len(premise_fw), len(hypothesis_fw))
-
-        # return self.out(torch.cat([premise, hypothesis], dim=1))
         return self.out(torch.cat([premise_fw[-1],
                                    premise_bw[-1],
                                    hypothesis_fw[-1],
                                    hypothesis_bw[-1]], dim=1))
 
     def hidden_init(self, batch_size, d_embed):
-        c, h = (Variable(torch.zeros(batch_size * 2, self.config.d_hidden)),
-                Variable(torch.zeros(batch_size * 2, self.config.d_hidden)))
         if self.config.cuda:
-            c, h = c.cuda(), h.cuda()
-        return (c, h)
+            return (Variable(torch.zeros(batch_size * 2, self.config.d_hidden).cuda()),
+                    Variable(torch.zeros(batch_size * 2, self.config.d_hidden).cuda()))
+        else:
+            return (Variable(torch.zeros(batch_size * 2, self.config.d_hidden)),
+                    Variable(torch.zeros(batch_size * 2, self.config.d_hidden)))
 
 
 class CosineModel(nn.Module):
