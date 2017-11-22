@@ -143,12 +143,13 @@ def main():
             experiment.log_metric("Train loss", train_loss)
             experiment.log_metric("Val loss", val_loss)
             experiment.log_metric("Accuracy (val)", val_accuracy)
+            experiment.log_metric("Accuracy (train)", 100 * train_correct / len(train))
 
         if args.save_model and (val_accuracy > best_val_acc):
             best_val_acc = val_accuracy
             if best_val_acc > 60:
                 snapshot_path = '../saved_models/Model_{}_acc_{:.4f}_epoch_{}_model.pt'.format(args.model_type, val_accuracy, epoch)
-                
+
                 if args.cuda:
                     torch.save(model.cpu(), snapshot_path)
                     model = model.cuda()
