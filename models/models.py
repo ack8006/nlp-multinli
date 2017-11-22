@@ -133,7 +133,6 @@ class ConcatModel(nn.Module):
         seq_in_size = 2 * config.d_hidden
         if config.bidir:
             seq_in_size *= 2
-        seq_in_size += 1
         layers = [[seq_in_size] * 2] * config.n_linear_layers
 
         self.out = MLP(layers, config.d_out, config.dropout_mlp, self.relu)
@@ -151,17 +150,19 @@ class ConcatModel(nn.Module):
         h_fw, c_fw = self.hidden_init(batch_size, self.config.d_embed)
         premise_fw, hypothesis_fw = [], []
         for word_input in torch.cat([premise, hypothesis], dim=1):
-            h_fw, c_fw = self.cell(word_input, (h_fw, c_fw))
+            h_fw, c_fw = self.cell(word_input, h_fw, c_fw)
             premise_fw.append(h_fw[:batch_size])
             hypothesis_fw.append(h_fw[batch_size:])
 
         # Backward Pass
         h_bw, c_bw = self.hidden_init(batch_size, self.config.d_embed)
         premise_bw, hypothesis_bw = [], []
-        for word_input in combined:
-            h_bw, c_bw = self.cell(word_input, (h_bw, c_bw))
+        for ind in range(combined.size(0) - 1, -1, -1):
+            h_bw, c_bw = self.cell(word_input[ind], h_bw, c_bw)
             premise_bw.append(h_bw[:batch_size])
             hypothesis_bw.append(h_bw[batch_size:])
+
+        print(len(premise_bw), len(hypothesis_bw), len(premise_fw), len(hypothesis_fw))
 
         # return self.out(torch.cat([premise, hypothesis], dim=1))
         return self.out(torch.cat([premise_fw[-1],
@@ -170,8 +171,8 @@ class ConcatModel(nn.Module):
                                    hypothesis_bw[-1]], dim=1))
 
     def hidden_init(self, batch_size, d_embed):
-        return (Variable(torch.Tensor(batch_size, self.config.d_embed).zero_()),
-                Variable(torch.Tensor(batch_size, self.config.d_embed).zero_()))
+        return (Variable(torch.Tensor(batch_size * 2, self.config.d_hidden).zero_()),
+                Variable(torch.Tensor(batch_size * 2, self.config.d_hidden).zero_()))
 
 
 class CosineModel(nn.Module):
