@@ -158,7 +158,7 @@ class ConcatModel(nn.Module):
         h_bw, c_bw = self.hidden_init(batch_size, self.config.d_embed)
         premise_bw, hypothesis_bw = [], []
         for ind in range(combined.size(0) - 1, -1, -1):
-            h_bw, c_bw = self.cell(word_input[ind], h_bw, c_bw)
+            h_bw, c_bw = self.cell(combined[ind], h_bw, c_bw)
             premise_bw.append(h_bw[:batch_size])
             hypothesis_bw.append(h_bw[batch_size:])
 
