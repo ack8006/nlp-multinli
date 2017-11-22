@@ -253,8 +253,8 @@ class ESIM(nn.Module):
         h_length = h.size(0)
     
         ### Get masks for true sequence length ###
-        mask_p = get_masks(p)
-        mask_h = get_masks(h)
+        mask_p = get_masks(p).transpose(0, 1)
+        mask_h = get_masks(h).transpose(0, 1)
         
         ### Embed inputs ###
         p = self.emb_drop(self.embed(p))
@@ -264,52 +264,19 @@ class ESIM(nn.Module):
         premise_bi, states = self.premise(p)
         hypothesis_bi, states = self.hypothesis(h)
 
-        # def unstack(tensor, dim):
-        #     return [torch.squeeze(x) for x in torch.split(tensor, 1, dim=dim)]
-        #
-        premise_list = unstack(premise_bi, 0)
-        hypothesis_list = unstack(hypothesis_bi, 0)
-                
         ### Attention ###
-        scores_all = []
-        premise_attn = []
-        alphas = []
-        
-        for i in range(p_length):
+        premise_bi = premise_bi.transpose(0, 1)
+        hypothesis_bi = hypothesis_bi.transpose(0, 1)
 
-            scores_i_list = []
-            for j in range(h_length):
-                score_ij = torch.sum(premise_list[i].mul(hypothesis_list[j]), dim=1, keepdim=True)
-                scores_i_list.append(score_ij)
-                                        
-            scores_i = torch.transpose(torch.stack(scores_i_list, dim=1), 0, 1)
-            alpha_i = torch.exp(scores_i).mul(mask_h)         
-            alpha_i = alpha_i / alpha_i.sum(dim=0).expand_as(alpha_i)
- 
-            a_tilde_i = torch.sum(torch.mul(alpha_i, hypothesis_bi), 0)
-    
-            premise_attn.append(a_tilde_i)
-            
-            scores_all.append(scores_i)
-            alphas.append(alpha_i)
-        
-        scores_stack = torch.stack(scores_all, dim=2)
-        scores_list = unstack(scores_stack, dim=0)
+        sim_scores = torch.bmm(premise_bi, torch.transpose(hypothesis_bi, 1, 2))
 
-        hypothesis_attn = []
-        betas = []
-        for j in range(h_length):
-            scores_j = torch.transpose(scores_list[j], 0, 1).unsqueeze(2)
-            beta_j = torch.exp(scores_j).mul(mask_p)
-            beta_j = beta_j / beta_j.sum(dim=0).expand_as(beta_j)
-            b_tilde_j = torch.sum(torch.mul(beta_j, premise_bi), 0)
-            hypothesis_attn.append(b_tilde_j)
+        p_probs = softmask(sim_scores, mask_h)
+        h_probs = softmask(torch.transpose(sim_scores, 1, 2), mask_p)
 
-            betas.append(beta_j)
-            
-        ### Make attention-weighted sentence representations into one tensor ###
-        premise_attns = torch.stack(premise_attn, dim=0)
-        hypothesis_attns = torch.stack(hypothesis_attn, dim=0)
+        premise_attns = torch.bmm(p_probs, hypothesis_bi).transpose(0, 1)
+        hypothesis_attns = torch.bmm(h_probs, premise_bi).transpose(0, 1)
+        premise_bi = premise_bi.transpose(0, 1)
+        hypothesis_bi = hypothesis_bi.transpose(0, 1)
 
         ### Subcomponent Inference ###
         prem_diff = premise_bi.sub(premise_attns)
