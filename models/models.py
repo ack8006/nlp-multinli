@@ -171,8 +171,8 @@ class ConcatModel(nn.Module):
                                    hypothesis_bw[-1]], dim=1))
 
     def hidden_init(self, batch_size, d_embed):
-        c, h = (Variable(torch.Tensor(batch_size * 2, self.config.d_hidden).zero_()),
-                Variable(torch.Tensor(batch_size * 2, self.config.d_hidden).zero_()))
+        c, h = (Variable(torch.zeros(batch_size * 2, self.config.d_hidden)),
+                Variable(torch.zeros(batch_size * 2, self.config.d_hidden)))
         if self.config.cuda:
             c, h = c.cuda(), h.cuda()
         return (c, h)
