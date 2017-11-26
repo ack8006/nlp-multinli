@@ -9,6 +9,7 @@ import numpy as np
 from torch.nn.utils import clip_grad_norm
 
 from models import ConcatModel, CosineModel, ESIM, DA
+from bimpm import BiMPM
 sys.path.append('../utilities')
 from tokenizers import custom_tokenizer
 from utils import get_dataset, get_args
@@ -20,7 +21,8 @@ nltk.data.path.append(nltk_path)
 MODELS = {'ConcatModel': ConcatModel,
           'CosineModel': CosineModel,
           'DA': DA,
-          'ESIM': ESIM}
+          'ESIM': ESIM,
+          'BiMPM': BiMPM}
 
 
 def early_stop(val_acc_history, t=3, required_progress=0.01):
