@@ -10,6 +10,7 @@ class CustomWeight(nn.Module):
         self.d_hidden = d_hidden
         self.mp_dim = mp_dim
         self.weight = Variable(torch.Tensor(1, mp_dim, d_hidden), requires_grad=True)
+        self.weight_init()
         if cuda:
             self.weight = self.weight.cuda()
 
