@@ -3,7 +3,7 @@ import os
 from comet_ml import Experiment
 import torch
 import torch.nn as nn
-from torchtext import data
+from torchtext import data, datasets
 import nltk
 import numpy as np
 from torch.nn.utils import clip_grad_norm
@@ -65,8 +65,16 @@ def main():
                             unk_token='<**UNK**>')
     label_field = data.Field(sequential=False, unk_token=None)
 
-    train = get_dataset(text_field, label_field, 'train')
-    val = get_dataset(text_field, label_field, args.val_set)
+    if args.dataset == 'multinli':
+        print('Loading MultiNLI Dataset')
+        train = get_dataset(text_field, label_field, 'train')
+        val = get_dataset(text_field, label_field, args.val_set)
+    elif args.dataset == 'snli':
+        print('Loading SNLI Dataset')
+        train, val, test = datasets.SNLI.splits(text_field, label_field)
+        del test
+    else:
+        raise Exception('Incorrect Dataset Specified')
 
     text_field.build_vocab(train, max_size=args.max_vocab_size)
     label_field.build_vocab(train, val)

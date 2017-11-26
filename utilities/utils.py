@@ -50,6 +50,7 @@ def get_dataset(text_field, label_field, dataset):
 
 def get_args():
     parser = ArgumentParser(description='PyTorch MultiNLI Model')
+    parser.add_argument('--dataset', type=str, default='multinli')
     parser.add_argument('--model_type', type=str)
     parser.add_argument('--val_set', type=str, default='val_matched',
                         help='Which Val Set (val_matched, val_mismatched')
