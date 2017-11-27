@@ -30,7 +30,7 @@ def tsv_file_existence_check(file_txt, file_tsv):
                     line = line.split('\t')
                     if line[0] == '-':  # Examples without a Gold Consensus
                         continue
-                    f_tsv.write('\t'.join([line[0], line[5], line[6], line[8]) + '\n')
+                    f_tsv.write('\t'.join([line[0], line[5], line[6], line[8]] + '\n')
 
 
 def get_dataset(text_field, label_field, pair_field, dataset):
