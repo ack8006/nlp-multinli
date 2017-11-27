@@ -30,10 +30,10 @@ def tsv_file_existence_check(file_txt, file_tsv):
                     line = line.split('\t')
                     if line[0] == '-':  # Examples without a Gold Consensus
                         continue
-                    f_tsv.write('\t'.join([line[0], line[5], line[6]]) + '\n')
+                    f_tsv.write('\t'.join([line[0], line[5], line[6], line[8]) + '\n')
 
 
-def get_dataset(text_field, label_field, dataset):
+def get_dataset(text_field, label_field, pair_field, dataset):
     if dataset not in FILES.keys():
         raise AttributeError('Please set dataset as either {}'.format(FILES.keys()))
     file_txt, file_tsv = FILES[dataset]
@@ -44,7 +44,8 @@ def get_dataset(text_field, label_field, dataset):
                                   format='TSV',
                                   fields=[('label', label_field),
                                           ('premise', text_field),
-                                          ('hypothesis', text_field)])
+                                          ('hypothesis', text_field),
+                                          ('pairID', pair_field)])
     return dataset
 
 
