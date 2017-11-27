@@ -79,6 +79,7 @@ def main():
 
     text_field.build_vocab(train, max_size=args.max_vocab_size)
     label_field.build_vocab(train, val)
+    pair_field.build_vocab(train, val)
 
     if args.word_vectors:
         text_field.vocab.load_vectors(args.word_vectors)
