@@ -64,7 +64,7 @@ def main():
                             fix_length=args.sentence_len,
                             unk_token='<**UNK**>')
     label_field = data.Field(sequential=False, unk_token=None)
-    pair_field = data.Field(sequential=False, unk_token=None)
+    pair_field = data.RawField()
 
     if args.dataset == 'multinli':
         print('Loading MultiNLI Dataset')
@@ -79,7 +79,6 @@ def main():
 
     text_field.build_vocab(train, max_size=args.max_vocab_size)
     label_field.build_vocab(train, val)
-    pair_field.build_vocab(train, val)
 
     if args.word_vectors:
         text_field.vocab.load_vectors(args.word_vectors)
