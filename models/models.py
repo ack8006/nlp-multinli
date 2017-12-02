@@ -385,13 +385,6 @@ class DA(nn.Module):
         p_embedded = self.embed(p)
         h_embedded = self.embed(h)
 
-        # Normalize embeddings
-        # norm = p_embedded.norm(p=2, dim=2, keepdim=True)
-        # p_embedded = p_embedded.div(norm.expand_as(p_embedded))
-        #
-        # norm = h_embedded.norm(p=2, dim=2, keepdim=True)
-        # h_embedded = h_embedded.div(norm.expand_as(h_embedded))
-
         # Apply initial linear encoding
         p_linear = self.in_linear(p_embedded.view(batch_size * p_length, self.d_embed)).view(batch_size, p_length, self.d_hidden)
         h_linear = self.in_linear(h_embedded.view(batch_size * h_length, self.d_embed)).view(batch_size, h_length, self.d_hidden)

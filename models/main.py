@@ -122,6 +122,10 @@ def main():
     val_acc_history = []
 
     for epoch in range(1, args.n_epochs + 1):
+
+        if (args.model_type == 'DA') and (best_val_acc >= args.DA_embed_train):
+            model.embed.weight.requires_grad = True
+
         train_iter.init_epoch()
         for batch_ind, batch in enumerate(train_iter):
             model.train()

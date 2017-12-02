@@ -4,8 +4,8 @@ from torchtext import data
 
 
 FILES = {
-    'train': ('multinli_1.0_train.txt', 'train.tsv'),
-    # 'train': ('multinli_1.0_dev_matched.txt', 'val_match.tsv'),
+    # 'train': ('multinli_1.0_train.txt', 'train.tsv'),
+    'train': ('multinli_1.0_dev_matched.txt', 'val_match.tsv'),
     'val_matched': ('multinli_1.0_dev_matched.txt', 'val_match.tsv'),
 
     # 'train': ('snli_1.0_train.txt', 'snli_train.tsv'),
@@ -78,6 +78,7 @@ def get_args():
     parser.add_argument('--save_model', action='store_true')
     parser.add_argument('--no_comet', action='store_true')
     parser.add_argument('--dev_every', type=int, default=300)
+    parser.add_argument('--DA_embed_train', type=int, default=100)
     parser.add_argument('--load_model', type=str, default='')
     args = parser.parse_args()
     return args
