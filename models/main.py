@@ -65,11 +65,12 @@ def main():
                             fix_length=args.sentence_len,
                             unk_token='<**UNK**>')
     label_field = data.Field(sequential=False, unk_token=None)
+    pair_field = data.RawField()
 
     if args.dataset == 'multinli':
         print('Loading MultiNLI Dataset')
-        train = get_dataset(text_field, label_field, 'train')
-        val = get_dataset(text_field, label_field, args.val_set)
+        train = get_dataset(text_field, label_field, pair_field, 'train')
+        val = get_dataset(text_field, label_field, pair_field, args.val_set)
     elif args.dataset == 'snli':
         print('Loading SNLI Dataset')
         train, val, test = datasets.SNLI.splits(text_field, label_field)
