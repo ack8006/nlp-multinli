@@ -50,6 +50,7 @@ def get_dataset(text_field, label_field, dataset):
 
 def get_args():
     parser = ArgumentParser(description='PyTorch MultiNLI Model')
+    parser.add_argument('--dataset', type=str, default='multinli')
     parser.add_argument('--model_type', type=str)
     parser.add_argument('--val_set', type=str, default='val_matched',
                         help='Which Val Set (val_matched, val_mismatched')
@@ -63,6 +64,9 @@ def get_args():
     parser.add_argument('--d_hidden', type=int, default=200)
     parser.add_argument('--n_layers', type=int, default=1)
     parser.add_argument('--n_linear_layers', type=int, default=3)
+    parser.add_argument('--mp_dim', type=int, default=15)
+    parser.add_argument('--agg_d_hidden', type=int, default=100)
+    parser.add_argument('--agg_n_layers', type=int, default=1)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--dropout_rnn', type=float, default=0.0)
     parser.add_argument('--dropout_mlp', type=float, default=0.0)
@@ -72,6 +76,7 @@ def get_args():
     parser.add_argument('--bidir', action='store_true')
     parser.add_argument('--cuda', action='store_true')
     parser.add_argument('--save_model', action='store_true')
+    parser.add_argument('--no_comet', action='store_true')
     parser.add_argument('--dev_every', type=int, default=300)
     parser.add_argument('--load_model', type=str, default='')
     args = parser.parse_args()

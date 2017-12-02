@@ -3,15 +3,15 @@ import os
 from comet_ml import Experiment
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torchtext import data
+from torchtext import data, datasets
 import nltk
 import numpy as np
 from torch.nn.utils import clip_grad_norm
 
 from models import ConcatModel, CosineModel, ESIM, DA
-
+from bimpm import BiMPM
 sys.path.append('../utilities')
+
 from tokenizers import custom_tokenizer
 from utils import get_dataset, get_args
 
@@ -22,28 +22,31 @@ nltk.data.path.append(nltk_path)
 MODELS = {'ConcatModel': ConcatModel,
           'CosineModel': CosineModel,
           'DA': DA,
-          'ESIM': ESIM}
+          'ESIM': ESIM,
+          'BiMPM': BiMPM}
+
 
 def early_stop(val_acc_history, t=3, required_progress=0.01):
     """
     Stop the training if there is no non-trivial progress in k steps
     @param val_acc_history: a list contains all the historical validation acc
-    @param required_progress: the next acc should be higher than the previous by 
+    @param required_progress: the next acc should be higher than the previous by
         at least required_progress amount to be non-trivial
-    @param t: number of training steps 
+    @param t: number of training steps
     @return: a boolean indicates if the model should early stop
     """
-    
-    if len(val_acc_history) < t+1:
+
+    if len(val_acc_history) < t + 1:
         return False
     else:
-        first = np.array(val_acc_history[-t-1:-1])
+        first = np.array(val_acc_history[-t - 1:-1])
         second = np.array(val_acc_history[-t:])
-        
+
         if np.all((second - first) < required_progress):
             return True
         else:
             return False
+
 
 def sort_key(ex):
     return data.interleave_keys(len(ex.premise), len(ex.hypothesis))
@@ -52,19 +55,27 @@ def sort_key(ex):
 def main():
 
     args = get_args()
-    experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
-    # experiment = Experiment(api_key="testing locally", log_code=True)
-
     hyperparams = vars(args)
-    experiment.log_multiple_params(hyperparams)
+
+    if not args.no_comet:
+        experiment = Experiment(api_key="5yzCYxgDmFnt1fhJWTRQIkETT", log_code=True)
+        experiment.log_multiple_params(hyperparams)
 
     text_field = data.Field(tokenize=custom_tokenizer,
                             fix_length=args.sentence_len,
                             unk_token='<**UNK**>')
     label_field = data.Field(sequential=False, unk_token=None)
 
-    train = get_dataset(text_field, label_field, 'train')
-    val = get_dataset(text_field, label_field, args.val_set)
+    if args.dataset == 'multinli':
+        print('Loading MultiNLI Dataset')
+        train = get_dataset(text_field, label_field, 'train')
+        val = get_dataset(text_field, label_field, args.val_set)
+    elif args.dataset == 'snli':
+        print('Loading SNLI Dataset')
+        train, val, test = datasets.SNLI.splits(text_field, label_field)
+        del test
+    else:
+        raise Exception('Incorrect Dataset Specified')
 
     text_field.build_vocab(train, max_size=args.max_vocab_size)
     label_field.build_vocab(train, val)
@@ -112,6 +123,9 @@ def main():
     val_acc_history = []
 
     for epoch in range(1, args.n_epochs + 1):
+       # if (args.model_type == 'DA') and (best_val_acc >= 0):
+        #    model.embed.weight.requires_grad = True
+        
         train_iter.init_epoch()
         for batch_ind, batch in enumerate(train_iter):
             model.train()
@@ -139,15 +153,17 @@ def main():
 
         stop_training = early_stop(val_acc_history)
 
-        experiment.log_metric("Train loss", train_loss)
-        experiment.log_metric("Val loss", val_loss)
-        experiment.log_metric("Accuracy (val)", val_accuracy)
+        if not args.no_comet:
+            experiment.log_metric("Train loss", train_loss)
+            experiment.log_metric("Val loss", val_loss)
+            experiment.log_metric("Accuracy (val)", val_accuracy)
+            experiment.log_metric("Accuracy (train)", 100 * train_correct / len(train))
 
         if args.save_model and (val_accuracy > best_val_acc):
             best_val_acc = val_accuracy
             if best_val_acc > 60:
                 snapshot_path = '../saved_models/Model_{}_acc_{:.4f}_epoch_{}_model.pt'.format(args.model_type, val_accuracy, epoch)
-                
+
                 if args.cuda:
                     torch.save(model.cpu(), snapshot_path)
                     model = model.cuda()
