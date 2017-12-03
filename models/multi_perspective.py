@@ -62,8 +62,8 @@ class MultiPerspective(nn.Module):
         ma_fw = self._attentive_matching(p_fw, h_fw, self.weight_am_fw, cos_matrix_fw)
         ma_bw = self._attentive_matching(p_bw, h_bw, self.weight_am_bw, cos_matrix_bw)
 
-        mam_fw = self._attentive_matching(p_fw, h_fw, self.weight_mam_fw, cos_matrix_fw)
-        mam_bw = self._attentive_matching(p_bw, h_bw, self.weight_mam_bw, cos_matrix_bw)
+        mam_fw = self._max_attentive_matching(p_fw, h_fw, self.weight_mam_fw, cos_matrix_fw)
+        mam_bw = self._max_attentive_matching(p_bw, h_bw, self.weight_mam_bw, cos_matrix_bw)
 
         return torch.cat([fm_fw, fm_bw, mpm_fw, mpm_bw, ma_fw, ma_bw, mam_fw, mam_bw], dim=-1)
 
