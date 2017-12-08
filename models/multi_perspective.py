@@ -59,6 +59,7 @@ class MultiPerspective(nn.Module):
                                                torch.unsqueeze(h_fw, dim=0))
         cos_matrix_bw = self.cosine_similarity(torch.unsqueeze(p_bw, dim=1),
                                                torch.unsqueeze(h_bw, dim=0))
+
         ma_fw = self._attentive_matching(p_fw, h_fw, self.weight_am_fw, cos_matrix_fw)
         ma_bw = self._attentive_matching(p_bw, h_bw, self.weight_am_bw, cos_matrix_bw)
 
@@ -107,11 +108,12 @@ class MultiPerspective(nn.Module):
 
     def _max_attentive_matching(self, x1, x2, mam_layer, cos_matrix):
         index_mask = torch.max(cos_matrix, dim=1)[1]
-        timesteps = x1.view(0)
-        batch_size = x1.view(1)
-        index_mask *= torch.Tensor(list(range(0, timesteps * batch_size, batch_size))).view(-1, 1).long()
-        index_mask += torch.Tensor(list(range(batch_size)))
-        index_mask = index_mask.long().view(-1)
+        timesteps = x1.size(0)
+        batch_size = x1.size(1)
+        # All of this basically gets the index of the flattened x2 matrix from the max
+        index_mask = index_mask * batch_size
+        index_mask += Variable(torch.Tensor(list(range(batch_size))).long())
+        index_mask = index_mask.view(-1)
         max_attentive = torch.index_select(x2.view(-1, self.config.d_hidden), 0, index_mask)
         max_attentive = max_attentive.view(timesteps, batch_size, -1)
         x1 = mam_layer(x1)
