@@ -112,7 +112,10 @@ class MultiPerspective(nn.Module):
         batch_size = x1.size(1)
         # All of this basically gets the index of the flattened x2 matrix from the max
         index_mask = index_mask * batch_size
-        index_mask += Variable(torch.Tensor(list(range(batch_size))).long())
+        ind_range = Variable(torch.Tensor(list(range(batch_size))).long())
+        if self.config.cuda:
+            ind_range = ind_range.cuda()
+        index_mask += ind_range
         index_mask = index_mask.view(-1)
         max_attentive = torch.index_select(x2.view(-1, self.config.d_hidden), 0, index_mask)
         max_attentive = max_attentive.view(timesteps, batch_size, -1)
